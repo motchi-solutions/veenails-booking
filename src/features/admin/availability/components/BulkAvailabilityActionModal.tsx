@@ -10,13 +10,13 @@ import {
     type BulkAvailabilityActionState,
 } from "@/features/admin/availability/actions/bulk-availability-actions";
 import type { AdminAvailabilitySlot } from "@/features/admin/availability/data/admin-availability";
-import { formatDateTime } from "@/features/admin/components/admin-formatters";
 import {
     bulkAvailabilityActionCopy,
     getPriorityAccessActionLabel,
     isSlotEligibleForBulkAction,
     type BulkAvailabilityAction,
 } from "@/features/admin/availability/utils/bulk-availability";
+import PriorityReleaseDateTimeField from "@/features/admin/availability/components/PriorityReleaseDateTimeField";
 
 const initialState: BulkAvailabilityActionState = {
     success: false,
@@ -31,14 +31,12 @@ const initialState: BulkAvailabilityActionState = {
 export default function BulkAvailabilityActionModal({
     action,
     selectedSlots,
-    regularEarlyAccessHours,
     nowIso,
     onClose,
     onComplete,
 }: {
     action: BulkAvailabilityAction;
     selectedSlots: AdminAvailabilitySlot[];
-    regularEarlyAccessHours: number;
     nowIso: string;
     onClose: () => void;
     onComplete: () => void;
@@ -108,10 +106,6 @@ export default function BulkAvailabilityActionModal({
         toast,
     ]);
 
-    const priorityVisibleAt = new Date(
-        now + regularEarlyAccessHours * 60 * 60 * 1000,
-    ).toISOString();
-
     return (
         <ModalShell
             title={action === "priority" ? `${actionLabel}?` : copy.title}
@@ -158,11 +152,12 @@ export default function BulkAvailabilityActionModal({
                 </div>
 
                 {action === "priority" ? (
-                    <p className="rounded-2xl bg-surface-2 p-4 text-sm leading-relaxed text-muted">
-                        General clients will see eligible slots after the
-                        current {regularEarlyAccessHours}-hour early-access
-                        window, around {formatDateTime(priorityVisibleAt)}.
-                    </p>
+                    <div className="rounded-2xl bg-surface-2 p-4">
+                        <PriorityReleaseDateTimeField
+                            required
+                            now={new Date(nowIso)}
+                        />
+                    </div>
                 ) : null}
 
                 {skippedCount > 0 ? (

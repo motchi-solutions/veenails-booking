@@ -1,6 +1,8 @@
 import type { Enums } from "@/types/supabase";
+import { getUserTimeZone } from "@/lib/utils/studio-time";
 
 const appointmentFormatter = new Intl.DateTimeFormat("en-CA", {
+    timeZone: getUserTimeZone(),
     month: "long",
     day: "numeric",
     year: "numeric",

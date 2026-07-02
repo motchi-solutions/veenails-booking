@@ -26,6 +26,7 @@ import type { Enums } from "@/types/supabase";
 import { syncBookingToGoogleCalendar } from "@/features/integrations/google-calendar/services/sync";
 import { calculateCheckoutPaymentPlan } from "@/features/bookings/utils/booking-ledger";
 import { buildBookingServiceLineItems } from "@/features/bookings/utils/booking-line-items";
+import { formatStudioAppointmentDateTime } from "@/lib/utils/studio-time";
 
 type CreateState = {
     error: string;
@@ -393,10 +394,7 @@ export async function createAdminAppointmentAction(
         });
         const recipientName = recipient.displayName;
         const siteUrl = getAppBaseUrl();
-        const appointment = new Intl.DateTimeFormat("en-CA", {
-            dateStyle: "full",
-            timeStyle: "short",
-        }).format(new Date(slot.starts_at));
+        const appointment = formatStudioAppointmentDateTime(slot.starts_at);
         const template = appointmentStatusTemplate({
             name: recipientName,
             reference: bookingReference,

@@ -12,18 +12,17 @@ import {
     getSlotTimeOptions,
     getStudioDateKey,
 } from "@/features/admin/availability/utils/slot-time-options";
+import PriorityReleaseDateTimeField from "@/features/admin/availability/components/PriorityReleaseDateTimeField";
 import { useRouter } from "next/navigation";
 import { useActionState, useEffect, useMemo, useState } from "react";
 
-export default function AvailabilitySlotForm({
-    regularEarlyAccessHours,
-}: {
-    regularEarlyAccessHours: number;
-}) {
+export default function AvailabilitySlotForm() {
     const today = getStudioDateKey();
     const [selectedDate, setSelectedDate] = useState(today);
     const [startTime, setStartTime] = useState("09:00");
     const [endTime, setEndTime] = useState("");
+    const [slotStatus, setSlotStatus] = useState("available");
+    const [accessMode, setAccessMode] = useState("priority");
     const router = useRouter();
     const { error, success } = useToast();
     const initialState: AvailabilityActionState = {
@@ -114,7 +113,10 @@ export default function AvailabilitySlotForm({
                         <select
                             name="status"
                             className="input-field"
-                            defaultValue="available"
+                            value={slotStatus}
+                            onChange={(event) =>
+                                setSlotStatus(event.target.value)
+                            }
                         >
                             <option value="available">Open for booking</option>
                             <option value="blocked">Blocked time</option>
@@ -123,7 +125,8 @@ export default function AvailabilitySlotForm({
                     <AppSelect
                         name="accessMode"
                         label="Booking access"
-                        defaultValue="priority"
+                        value={accessMode}
+                        onChange={setAccessMode}
                         options={[
                             {
                                 value: "priority",
@@ -134,8 +137,12 @@ export default function AvailabilitySlotForm({
                                 label: "Everyone immediately",
                             },
                         ]}
-                        helperText={`Priority access opens to regular customers first, then releases publicly after ${regularEarlyAccessHours} ${regularEarlyAccessHours === 1 ? "hour" : "hours"}.`}
+                        helperText="Priority access opens to regular customers first. Choose when it becomes public below."
                     />
+                    {slotStatus === "available" &&
+                    accessMode === "priority" ? (
+                        <PriorityReleaseDateTimeField />
+                    ) : null}
                     <label className="block space-y-2">
                         <span className="label-text">
                             Internal note (optional)

@@ -15,7 +15,6 @@ export default async function AdminAvailabilityRoute() {
     return (
         <AdminAvailabilityPage
             slots={data.slots}
-            regularEarlyAccessHours={data.regularEarlyAccessHours}
             nowIso={new Date().toISOString()}
         />
     );

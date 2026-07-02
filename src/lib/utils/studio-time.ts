@@ -1,4 +1,50 @@
 export const STUDIO_TIME_ZONE = "America/Toronto";
+export const DEFAULT_PRIORITY_ACCESS_HOURS = 24;
+
+export function getUserTimeZone() {
+    if (typeof window === "undefined") {
+        return STUDIO_TIME_ZONE;
+    }
+
+    try {
+        return (
+            Intl.DateTimeFormat().resolvedOptions().timeZone ||
+            STUDIO_TIME_ZONE
+        );
+    } catch {
+        return STUDIO_TIME_ZONE;
+    }
+}
+
+const studioAppointmentFormatter = new Intl.DateTimeFormat("en-CA", {
+    timeZone: STUDIO_TIME_ZONE,
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    timeZoneName: "short",
+});
+
+const studioAppointmentTimeFormatter = new Intl.DateTimeFormat("en-CA", {
+    timeZone: STUDIO_TIME_ZONE,
+    hour: "numeric",
+    minute: "2-digit",
+    timeZoneName: "short",
+});
+
+export function formatStudioAppointmentDateTime(value: string | Date) {
+    return studioAppointmentFormatter.format(
+        typeof value === "string" ? new Date(value) : value,
+    );
+}
+
+export function formatStudioAppointmentTime(value: string | Date) {
+    return studioAppointmentTimeFormatter.format(
+        typeof value === "string" ? new Date(value) : value,
+    );
+}
 
 const studioPartsFormatter = new Intl.DateTimeFormat("en-CA", {
     timeZone: STUDIO_TIME_ZONE,
@@ -36,6 +82,11 @@ export function getStudioDateTimeParts(date: Date) {
     };
 }
 
+export function formatStudioDateTimeInput(date: Date) {
+    const parts = getStudioDateTimeParts(date);
+    return `${parts.date}T${parts.time}`;
+}
+
 export function addDaysToStudioDateKey(dateKey: string, days: number) {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) {
         throw new Error("Invalid studio date.");
@@ -45,6 +96,28 @@ export function addDaysToStudioDateKey(dateKey: string, days: number) {
     return date.toISOString().slice(0, 10);
 }
 
+export function addMonthsToStudioDateKey(dateKey: string, months: number) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) {
+        throw new Error("Invalid studio date.");
+    }
+
+    const [year, month, day] = dateKey.split("-").map(Number);
+    const targetMonthStart = new Date(
+        Date.UTC(year, month - 1 + months, 1, 12),
+    );
+    const targetYear = targetMonthStart.getUTCFullYear();
+    const targetMonth = targetMonthStart.getUTCMonth();
+    const lastDay = new Date(
+        Date.UTC(targetYear, targetMonth + 1, 0, 12),
+    ).getUTCDate();
+
+    return new Date(
+        Date.UTC(targetYear, targetMonth, Math.min(day, lastDay), 12),
+    )
+        .toISOString()
+        .slice(0, 10);
+}
+
 export function getStudioDateKeyDay(dateKey: string) {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) {
         throw new Error("Invalid studio date.");
@@ -52,7 +125,11 @@ export function getStudioDateKeyDay(dateKey: string) {
     return new Date(`${dateKey}T12:00:00Z`).getUTCDay();
 }
 
-export function studioDateTimeToDate(dateKey: string, timeKey: string) {
+function studioDateTimePartsToDate(
+    dateKey: string,
+    timeKey: string,
+    minuteIncrement: number,
+) {
     if (
         !/^\d{4}-\d{2}-\d{2}$/.test(dateKey) ||
         !/^\d{2}:\d{2}$/.test(timeKey)
@@ -63,7 +140,7 @@ export function studioDateTimeToDate(dateKey: string, timeKey: string) {
     const [year, month, day] = dateKey.split("-").map(Number);
     const [hour, minute] = timeKey.split(":").map(Number);
     if (
-        minute % 30 !== 0 ||
+        minute % minuteIncrement !== 0 ||
         hour > 23 ||
         minute > 59 ||
         month < 1 ||
@@ -71,7 +148,11 @@ export function studioDateTimeToDate(dateKey: string, timeKey: string) {
         day < 1 ||
         day > 31
     ) {
-        throw new Error("Times must use 30-minute increments.");
+        throw new Error(
+            minuteIncrement === 30
+                ? "Times must use 30-minute increments."
+                : "Choose a valid time.",
+        );
     }
 
     const target = Date.UTC(year, month - 1, day, hour, minute);
@@ -96,4 +177,20 @@ export function studioDateTimeToDate(dateKey: string, timeKey: string) {
     }
 
     return result;
+}
+
+export function studioDateTimeToDate(dateKey: string, timeKey: string) {
+    return studioDateTimePartsToDate(dateKey, timeKey, 30);
+}
+
+export function studioDateTimeInputToDate(value: string) {
+    const match = value.match(
+        /^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2})(?::\d{2})?$/,
+    );
+
+    if (!match) {
+        throw new Error("Choose a valid public release date and time.");
+    }
+
+    return studioDateTimePartsToDate(match[1], match[2], 1);
 }

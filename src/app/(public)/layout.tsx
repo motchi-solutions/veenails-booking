@@ -18,7 +18,7 @@ export default async function PublicLayout({
     const primaryLabel = user ? "Start Booking" : "Create Account";
 
     const secondaryHref = user ? "/dashboard" : "/login";
-    const secondaryLabel = user ? "Go to Dashboard" : "Sign In";
+    const secondaryLabel = user ? "Dashboard" : "Sign In";
 
     return (
         <>

@@ -4,6 +4,7 @@ import { appointmentReminderTemplate } from "@/features/notifications/email/temp
 import { resolveBookingRecipient } from "@/features/notifications/utils/resolve-booking-recipient";
 import {
     getStudioDateKey,
+    formatStudioAppointmentTime,
     STUDIO_TIME_ZONE,
     studioDateTimeToDate,
 } from "@/lib/utils/studio-time";
@@ -47,12 +48,6 @@ type ReminderBookingRow = Pick<
 const dateFormatter = new Intl.DateTimeFormat("en-CA", {
     timeZone: STUDIO_TIME_ZONE,
     dateStyle: "full",
-});
-
-const timeFormatter = new Intl.DateTimeFormat("en-CA", {
-    timeZone: STUDIO_TIME_ZONE,
-    hour: "numeric",
-    minute: "2-digit",
 });
 
 export async function sendAppointmentReminders(now = new Date()) {
@@ -125,8 +120,8 @@ export async function sendAppointmentReminders(now = new Date()) {
             name: recipient.displayName,
             reference: booking.booking_reference,
             appointmentDate: dateFormatter.format(startsAt),
-            startTime: timeFormatter.format(startsAt),
-            endTime: endsAt ? timeFormatter.format(endsAt) : null,
+            startTime: formatStudioAppointmentTime(startsAt),
+            endTime: endsAt ? formatStudioAppointmentTime(endsAt) : null,
             serviceSummary: services,
             instagramUrl: settings?.instagram_url ?? null,
             detailsUrl:

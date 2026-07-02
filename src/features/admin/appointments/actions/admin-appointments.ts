@@ -22,6 +22,7 @@ import {
     syncBookingRescheduleToGoogleCalendar,
     syncBookingToGoogleCalendar,
 } from "@/features/integrations/google-calendar/services/sync";
+import { formatStudioAppointmentDateTime } from "@/lib/utils/studio-time";
 
 export type AdminAppointmentEditState = {
     error?: string;
@@ -116,7 +117,7 @@ async function getBooking(admin: ReturnType<typeof createAdminClient>, bookingId
 async function emailBookingStatus(booking: Awaited<ReturnType<typeof getBooking>>, status: string, message: string, notificationType: string) {
     const recipient = resolveBookingRecipient(booking);
     const recipientName = recipient.displayName;
-    const appointment = booking.availability_slots?.starts_at ? new Intl.DateTimeFormat("en-CA", { dateStyle: "full", timeStyle: "short" }).format(new Date(booking.availability_slots.starts_at)) : "Not scheduled";
+    const appointment = booking.availability_slots?.starts_at ? formatStudioAppointmentDateTime(booking.availability_slots.starts_at) : "Not scheduled";
     const siteUrl = getAppBaseUrl();
     const template = appointmentStatusTemplate({ name: recipientName, reference: booking.booking_reference, status, appointment, message, detailsUrl: booking.user_id && siteUrl ? `${siteUrl}/booking/${booking.booking_reference}` : undefined });
     await sendTransactionalEmail({ to: { email: recipient.email, name: recipientName }, ...template, notificationType, bookingId: booking.id, userId: booking.user_id });
@@ -1026,7 +1027,7 @@ export async function reviewCancellationAction(
         });
         const recipient = resolveBookingRecipient(booking);
         const recipientName = recipient.displayName;
-        const appointment = booking.availability_slots?.starts_at ? new Intl.DateTimeFormat("en-CA", { dateStyle: "full", timeStyle: "short" }).format(new Date(booking.availability_slots.starts_at)) : "Not scheduled";
+        const appointment = booking.availability_slots?.starts_at ? formatStudioAppointmentDateTime(booking.availability_slots.starts_at) : "Not scheduled";
         const siteUrl = getAppBaseUrl();
         const template = cancellationTemplate({ name: recipientName, reference: booking.booking_reference, heading: status === "approved" ? "Cancellation approved" : "Cancellation request declined", appointment, reason: reason || "No additional note", outcome: status === "approved" ? "Appointment cancelled" : "Appointment remains confirmed", message: status === "approved" ? "The studio approved your cancellation request." : "The studio reviewed your request and your appointment remains confirmed.", detailsUrl: booking.user_id && siteUrl ? `${siteUrl}/booking/${booking.booking_reference}` : undefined });
         await sendTransactionalEmail({ to: { email: recipient.email, name: recipientName }, ...template, notificationType: `cancellation_${status}`, bookingId, userId: booking.user_id });

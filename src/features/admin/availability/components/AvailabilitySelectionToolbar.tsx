@@ -29,16 +29,11 @@ export default function AvailabilitySelectionToolbar({
             slot.regularsFirst &&
             new Date(slot.publicAccessAt).getTime() > now,
     );
-    const hasPublicSlots = selectedSlots.some(
-        (slot) =>
-            !slot.regularsFirst ||
-            new Date(slot.publicAccessAt).getTime() <= now,
-    );
     const visibleActions = BULK_AVAILABILITY_ACTIONS.filter(
         (action) =>
             action === "deactivate" ||
             (action === "release" && hasPrioritySlots) ||
-            (action === "priority" && hasPublicSlots),
+            action === "priority",
     );
     const priorityActionLabel = getPriorityAccessActionLabel(
         selectedSlots,

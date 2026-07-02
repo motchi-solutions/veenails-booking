@@ -67,6 +67,9 @@ export default function DashboardAvailabilityCalendar({
         currentStartIndex + visibleCount < normalizedDays.length;
     const hasAnySlots = normalizedDays.some((day) => day.slots.length > 0);
     const hasVisibleSlots = visibleDays.some((day) => day.slots.length > 0);
+    const nextAvailableIndex = normalizedDays.findIndex((day) =>
+        day.slots.some((slot) => slot.available),
+    );
 
     if (!hasAnySlots) {
         return (
@@ -94,7 +97,15 @@ export default function DashboardAvailabilityCalendar({
                 dateRange={dateRange}
                 canGoBack={canGoBack}
                 canGoForward={canGoForward}
+                canGoToNextAvailable={nextAvailableIndex >= 0}
                 onToday={() => setPageOffset(0)}
+                onNextAvailable={() =>
+                    setPageOffset(
+                        nextAvailableIndex >= baseStartIndex
+                            ? nextAvailableIndex - baseStartIndex
+                            : 0,
+                    )
+                }
                 onPrevious={() =>
                     setPageOffset(Math.max(0, boundedPageOffset - visibleCount))
                 }

@@ -16,6 +16,8 @@ import {
     getStudioDateKey,
     getStudioDateTimeParts,
 } from "@/features/admin/availability/utils/slot-time-options";
+import PriorityReleaseDateTimeField from "@/features/admin/availability/components/PriorityReleaseDateTimeField";
+import { formatStudioDateTimeInput } from "@/lib/utils/studio-time";
 import {
     useActionState,
     useEffect,
@@ -31,11 +33,9 @@ const initialState: AvailabilityActionState = {
 
 export default function EditAvailabilitySlotForm({
     slot,
-    regularEarlyAccessHours,
     onClose,
 }: {
     slot: AdminAvailabilitySlot;
-    regularEarlyAccessHours: number;
     onClose: () => void;
 }) {
     const router = useRouter();
@@ -51,6 +51,15 @@ export default function EditAvailabilitySlotForm({
     const [selectedDate, setSelectedDate] = useState(start.date);
     const [startTime, setStartTime] = useState(start.time);
     const [endTime, setEndTime] = useState(end.time);
+    const [slotStatus, setSlotStatus] = useState(slot.status);
+    const [accessMode, setAccessMode] = useState(
+        slot.regularsFirst ? "priority" : "everyone",
+    );
+    const releaseDefault =
+        slot.regularsFirst &&
+        !slot.priorityReleased
+            ? formatStudioDateTimeInput(new Date(slot.publicAccessAt))
+            : "";
     const startTimeOptions = useMemo(
         () => getSlotTimeOptions({ selectedDate }),
         [selectedDate],
@@ -157,7 +166,13 @@ export default function EditAvailabilitySlotForm({
                             <span className="label-text">Status</span>
                             <select
                                 name="status"
-                                defaultValue={slot.status}
+                                value={slotStatus}
+                                onChange={(event) =>
+                                    setSlotStatus(
+                                        event.target
+                                            .value as AdminAvailabilitySlot["status"],
+                                    )
+                                }
                                 className="input-field"
                             >
                                 <option value="available">Open</option>
@@ -168,9 +183,8 @@ export default function EditAvailabilitySlotForm({
                         <AppSelect
                             name="accessMode"
                             label="Booking access"
-                            defaultValue={
-                                slot.regularsFirst ? "priority" : "everyone"
-                            }
+                            value={accessMode}
+                            onChange={setAccessMode}
                             options={[
                                 {
                                     value: "priority",
@@ -181,8 +195,14 @@ export default function EditAvailabilitySlotForm({
                                     label: "Everyone immediately",
                                 },
                             ]}
-                            helperText={`Choose “Everyone immediately” to release this slot to all customers now. Priority access uses the configured ${regularEarlyAccessHours}-hour early-access window.`}
+                            helperText="Choose “Everyone immediately” to release this slot now, or set a custom public release below."
                         />
+                        {slotStatus === "available" &&
+                        accessMode === "priority" ? (
+                            <PriorityReleaseDateTimeField
+                                defaultValue={releaseDefault}
+                            />
+                        ) : null}
 
                         <label className="block space-y-2">
                             <span className="label-text">Internal note</span>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import AvailabilitySlotForm from "@/features/admin/availability/components/AvailabilitySlotForm";
 import type { AdminAvailabilitySlot } from "@/features/admin/availability/data/admin-availability";
@@ -13,14 +13,12 @@ import type { BulkAvailabilityAction } from "@/features/admin/availability/utils
 
 function SlotList({
     slots,
-    regularEarlyAccessHours,
     history = false,
     selectedIds,
     onSelectedChange,
     onToggleAll,
 }: {
     slots: AdminAvailabilitySlot[];
-    regularEarlyAccessHours: number;
     history?: boolean;
     selectedIds: Set<string>;
     onSelectedChange: (slotId: string, checked: boolean) => void;
@@ -59,7 +57,6 @@ function SlotList({
                 <AvailabilitySlotCard
                     key={slot.id}
                     slot={slot}
-                    regularEarlyAccessHours={regularEarlyAccessHours}
                     history={history}
                     selected={selectedIds.has(slot.id)}
                     onSelectedChange={
@@ -75,11 +72,9 @@ function SlotList({
 
 export default function AdminAvailabilityPage({
     slots,
-    regularEarlyAccessHours,
     nowIso,
 }: {
     slots: AdminAvailabilitySlot[];
-    regularEarlyAccessHours: number;
     nowIso: string;
 }) {
     const [selectedIds, setSelectedIds] = useState<Set<string>>(
@@ -118,6 +113,26 @@ export default function AdminAvailabilityPage({
     const selectedSlots = slots.filter((slot) =>
         visibleSelectedIds.has(slot.id),
     );
+    const hasSelection = visibleSelectedIds.size > 0;
+
+    useEffect(() => {
+        if (!hasSelection) {
+            return;
+        }
+
+        function clearSelectionOnEscape(event: KeyboardEvent) {
+            if (event.key !== "Escape") {
+                return;
+            }
+
+            setSelectedIds(new Set());
+            setModalAction(null);
+        }
+
+        window.addEventListener("keydown", clearSelectionOnEscape);
+        return () =>
+            window.removeEventListener("keydown", clearSelectionOnEscape);
+    }, [hasSelection]);
 
     function setSlotSelected(slotId: string, checked: boolean) {
         setSelectedIds((current) => {
@@ -155,9 +170,7 @@ export default function AdminAvailabilityPage({
                     title="Availability"
                     description="Add open hours or block time without wrestling a browser date picker."
                 />
-                <AvailabilitySlotForm
-                    regularEarlyAccessHours={regularEarlyAccessHours}
-                />
+                <AvailabilitySlotForm />
             </section>
             <section className="space-y-3 rounded-3xl border border-border/60 bg-surface p-5 shadow-sm sm:p-7">
                 <div>
@@ -176,7 +189,6 @@ export default function AdminAvailabilityPage({
                 />
                 <SlotList
                     slots={future}
-                    regularEarlyAccessHours={regularEarlyAccessHours}
                     selectedIds={visibleSelectedIds}
                     onSelectedChange={setSlotSelected}
                     onToggleAll={toggleAll}
@@ -192,7 +204,6 @@ export default function AdminAvailabilityPage({
                 <div className="mt-4 space-y-3">
                     <SlotList
                         slots={past}
-                        regularEarlyAccessHours={regularEarlyAccessHours}
                         history
                         selectedIds={visibleSelectedIds}
                         onSelectedChange={setSlotSelected}
@@ -205,7 +216,6 @@ export default function AdminAvailabilityPage({
                     key={`${modalAction}-${[...visibleSelectedIds].join(",")}`}
                     action={modalAction}
                     selectedSlots={selectedSlots}
-                    regularEarlyAccessHours={regularEarlyAccessHours}
                     nowIso={nowIso}
                     onClose={() => setModalAction(null)}
                     onComplete={() => {

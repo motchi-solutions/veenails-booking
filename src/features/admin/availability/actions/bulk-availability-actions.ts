@@ -10,6 +10,7 @@ import {
     BULK_AVAILABILITY_ACTIONS,
     type BulkAvailabilityAction,
 } from "@/features/admin/availability/utils/bulk-availability";
+import { studioDateTimeInputToDate } from "@/lib/utils/studio-time";
 
 export type BulkAvailabilityActionState = {
     success: boolean;
@@ -125,14 +126,6 @@ function skipReasonForSlot(
         (!slot.regulars_first || new Date(slot.public_access_at) <= now)
     ) {
         return "Slots already visible to everyone were unchanged.";
-    }
-
-    if (
-        action === "priority" &&
-        slot.regulars_first &&
-        new Date(slot.public_access_at) > now
-    ) {
-        return "Slots already in the priority window were unchanged.";
     }
 
     return null;
@@ -262,33 +255,24 @@ export async function bulkAvailabilityAction(
                 .gt("public_access_at", nowIso)
                 .select("id");
         } else if (action === "priority") {
-            const { data: settings, error: settingsError } = await admin
-                .from("booking_settings")
-                .select("regular_early_access_hours")
-                .eq("id", 1)
-                .maybeSingle()
-                .overrideTypes<{
-                    regular_early_access_hours: number;
-                } | null>();
+            const releaseInput = String(
+                formData.get("priorityReleaseAt") ?? "",
+            ).trim();
+            let publicAccessAt: string;
 
-            if (settingsError) {
-                console.error(
-                    "[admin:availability:bulk-priority-settings]",
-                    settingsError,
+            try {
+                const releaseAt = studioDateTimeInputToDate(releaseInput);
+                if (releaseAt <= now) {
+                    return failure("Public release must be in the future.");
+                }
+                publicAccessAt = releaseAt.toISOString();
+            } catch (error) {
+                return failure(
+                    error instanceof Error
+                        ? error.message
+                        : "Choose a valid public release date and time.",
                 );
-                return failure("We couldn't load the early-access window.");
             }
-
-            const earlyAccessHours = Math.min(
-                168,
-                Math.max(
-                    0,
-                    Number(settings?.regular_early_access_hours ?? 24),
-                ),
-            );
-            const publicAccessAt = new Date(
-                now.getTime() + earlyAccessHours * 60 * 60 * 1000,
-            ).toISOString();
 
             update = await admin
                 .from("availability_slots")
@@ -328,6 +312,33 @@ export async function bulkAvailabilityAction(
         }
 
         const appliedIds = (update.data ?? []).map((slot) => slot.id);
+
+        if (action === "priority" && appliedIds.length > 0) {
+            const { data: verifiedSlots, error: verificationError } = await admin
+                .from("availability_slots")
+                .select("id")
+                .in("id", appliedIds)
+                .eq("active", true)
+                .eq("status", "available")
+                .eq("regulars_first", true)
+                .gt("public_access_at", nowIso);
+
+            if (
+                verificationError ||
+                (verifiedSlots ?? []).length !== appliedIds.length
+            ) {
+                console.error(
+                    "[admin:availability:bulk-priority-verification]",
+                    verificationError ?? {
+                        expected: appliedIds.length,
+                        actual: verifiedSlots?.length ?? 0,
+                    },
+                );
+                return failure(
+                    "Priority access could not be verified. Refresh and try again.",
+                );
+            }
+        }
         const raceSkippedCount = eligibleIds.length - appliedIds.length;
         if (raceSkippedCount > 0) {
             skippedReasons.push(

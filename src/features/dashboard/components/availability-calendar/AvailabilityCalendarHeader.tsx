@@ -1,17 +1,26 @@
-import { FiArrowLeft, FiArrowRight, FiRefreshCw } from "react-icons/fi";
+import {
+    FiArrowLeft,
+    FiArrowRight,
+    FiCalendar,
+    FiRefreshCw,
+} from "react-icons/fi";
 
 export default function AvailabilityCalendarHeader({
     dateRange,
     canGoBack,
     canGoForward,
+    canGoToNextAvailable,
     onToday,
+    onNextAvailable,
     onPrevious,
     onNext,
 }: {
     dateRange: string;
     canGoBack: boolean;
     canGoForward: boolean;
+    canGoToNextAvailable: boolean;
     onToday: () => void;
+    onNextAvailable: () => void;
     onPrevious: () => void;
     onNext: () => void;
 }) {
@@ -31,6 +40,16 @@ export default function AvailabilityCalendarHeader({
 
             <div className="space-y-2">
                 <div className="flex flex-wrap items-center gap-2">
+                    <button
+                        type="button"
+                        onClick={onNextAvailable}
+                        disabled={!canGoToNextAvailable}
+                        className="btn-primary inline-flex items-center gap-2 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                        <FiCalendar className="h-4 w-4" aria-hidden="true" />
+                        Next available
+                    </button>
+
                     <button
                         type="button"
                         onClick={onToday}

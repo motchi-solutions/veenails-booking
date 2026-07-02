@@ -9,6 +9,7 @@ import { getAppBaseUrl } from "@/lib/email/config";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { Enums } from "@/types/supabase";
 import { syncBookingToGoogleCalendar } from "@/features/integrations/google-calendar/services/sync";
+import { formatStudioAppointmentDateTime } from "@/lib/utils/studio-time";
 
 export type AdminCancellationState = { error: string; success: string; messageId: string };
 type Outcome = "credit" | "no_refund";
@@ -135,7 +136,7 @@ export async function cancelAppointmentWithOutcomeAction(
         const recipient = resolveBookingRecipient(booking);
         const recipientName = recipient.displayName;
         const siteUrl = getAppBaseUrl();
-        const template = cancellationTemplate({ name: recipientName, reference: booking.booking_reference, heading: "Appointment cancelled", appointment: booking.availability_slots ? new Intl.DateTimeFormat("en-CA", { dateStyle: "full", timeStyle: "short" }).format(new Date(booking.availability_slots.starts_at)) : "Not scheduled", reason, outcome: outcomeLabel, message: "Your appointment has been cancelled by the studio.", detailsUrl: booking.user_id && siteUrl ? `${siteUrl}/booking/${booking.booking_reference}` : undefined });
+        const template = cancellationTemplate({ name: recipientName, reference: booking.booking_reference, heading: "Appointment cancelled", appointment: booking.availability_slots ? formatStudioAppointmentDateTime(booking.availability_slots.starts_at) : "Not scheduled", reason, outcome: outcomeLabel, message: "Your appointment has been cancelled by the studio.", detailsUrl: booking.user_id && siteUrl ? `${siteUrl}/booking/${booking.booking_reference}` : undefined });
         await sendTransactionalEmail({ to: { email: recipient.email, name: recipientName }, ...template, notificationType: "admin_cancellation", bookingId, userId: booking.user_id });
         return result({ error: "", success: `Appointment cancelled. ${outcomeLabel}.` });
     } catch (error) {

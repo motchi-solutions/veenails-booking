@@ -1,4 +1,4 @@
-import { STUDIO_TIME_ZONE } from "@/lib/utils/studio-time";
+import { getUserTimeZone } from "@/lib/utils/studio-time";
 
 export type DashboardCalendarSlot = {
     id: string;
@@ -24,7 +24,7 @@ const rangeFormatter = new Intl.DateTimeFormat("en-CA", {
 });
 
 const timeFormatter = new Intl.DateTimeFormat("en-CA", {
-    timeZone: STUDIO_TIME_ZONE,
+    timeZone: getUserTimeZone(),
     hour: "numeric",
     minute: "2-digit",
 });

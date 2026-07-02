@@ -4,6 +4,7 @@ import AppSelect from "@/components/shared/form/AppSelect";
 import FormField from "@/components/shared/form/FormField";
 import { formatNorthAmericanPhone } from "@/features/auth/validation/phone";
 import {
+    getAvailablePreferredContactMethods,
     normalizeInstagramHandle,
     type PreferredContactMethod,
 } from "@/features/profile/validation/profile";
@@ -58,6 +59,11 @@ export default function ProfileDetailsFields({
     onPreferredContactMethodChange,
 }: ProfileDetailsFieldsProps) {
     const normalizedInstagram = normalizeInstagramHandle(instagramHandle);
+    const availableContactMethods = getAvailablePreferredContactMethods({
+        emailAvailable: true,
+        phone,
+        instagramHandle,
+    });
     const showInstagramError =
         instagramHandle.length > 0 &&
         (!normalizedInstagram ||
@@ -89,9 +95,16 @@ export default function ProfileDetailsFields({
                 placeholder="(416) 123-4567"
                 inputMode="tel"
                 value={phone}
-                onValueChange={(value) =>
-                    onPhoneChange(formatNorthAmericanPhone(value))
-                }
+                onValueChange={(value) => {
+                    const formattedPhone = formatNorthAmericanPhone(value);
+                    onPhoneChange(formattedPhone);
+                    if (
+                        preferredContactMethod === "phone" &&
+                        !formattedPhone.trim()
+                    ) {
+                        onPreferredContactMethodChange("email");
+                    }
+                }}
                 enterKeyHint="next"
                 enterBehavior="next"
                 hintContent="Optional, but helpful if there is an issue with your appointment."
@@ -106,9 +119,16 @@ export default function ProfileDetailsFields({
                 required
                 placeholder="e.g., vee.nailsstudio"
                 value={instagramHandle}
-                onValueChange={(value) =>
-                    onInstagramHandleChange(value.toLowerCase())
-                }
+                onValueChange={(value) => {
+                    const normalizedValue = value.toLowerCase();
+                    onInstagramHandleChange(normalizedValue);
+                    if (
+                        preferredContactMethod === "instagram" &&
+                        !normalizeInstagramHandle(normalizedValue)
+                    ) {
+                        onPreferredContactMethodChange("email");
+                    }
+                }}
                 enterKeyHint="next"
                 enterBehavior="next"
                 error={
@@ -129,11 +149,15 @@ export default function ProfileDetailsFields({
                         value as PreferredContactMethod,
                     )
                 }
-                options={[
-                    { value: "email", label: "Email" },
-                    { value: "phone", label: "Phone" },
-                    { value: "instagram", label: "Instagram" },
-                ]}
+                options={availableContactMethods.map((method) => ({
+                    value: method,
+                    label:
+                        method === "email"
+                            ? "Email"
+                            : method === "phone"
+                              ? "Phone"
+                              : "Instagram",
+                }))}
                 helperText="Choose how the studio should contact you about appointments."
             />
         </>

@@ -17,6 +17,24 @@ export const preferredContactMethods = [
     "instagram",
 ] as const satisfies PreferredContactMethod[];
 
+export function getAvailablePreferredContactMethods({
+    email,
+    emailAvailable = Boolean(email?.trim()),
+    phone,
+    instagramHandle,
+}: {
+    email?: string | null;
+    emailAvailable?: boolean;
+    phone?: string | null;
+    instagramHandle?: string | null;
+}) {
+    return preferredContactMethods.filter((method) => {
+        if (method === "email") return emailAvailable;
+        if (method === "phone") return Boolean(phone?.trim());
+        return Boolean(normalizeInstagramHandle(instagramHandle ?? ""));
+    });
+}
+
 export function validateDisplayName(value: string) {
     const displayName = value.trim();
 

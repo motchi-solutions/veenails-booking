@@ -10,29 +10,48 @@ import type {
     ServiceOption,
 } from "@/features/bookings/new-booking/types";
 import {
-    getStudioDateKey,
-    STUDIO_TIME_ZONE,
+    getUserTimeZone,
 } from "@/lib/utils/studio-time";
 
+const userTimeZone = getUserTimeZone();
+
 const fullDateFormatter = new Intl.DateTimeFormat("en-CA", {
-    timeZone: STUDIO_TIME_ZONE,
+    timeZone: userTimeZone,
     weekday: "long",
     month: "long",
     day: "numeric",
 });
 
 const shortDateFormatter = new Intl.DateTimeFormat("en-CA", {
-    timeZone: STUDIO_TIME_ZONE,
+    timeZone: userTimeZone,
     weekday: "short",
     month: "short",
     day: "numeric",
 });
 
 const timeFormatter = new Intl.DateTimeFormat("en-CA", {
-    timeZone: STUDIO_TIME_ZONE,
+    timeZone: userTimeZone,
     hour: "numeric",
     minute: "2-digit",
 });
+
+const dateKeyFormatter = new Intl.DateTimeFormat("en-CA", {
+    timeZone: userTimeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+});
+
+function getUserDateKey(value: string) {
+    const parts = Object.fromEntries(
+        dateKeyFormatter
+            .formatToParts(new Date(value))
+            .filter((part) => part.type !== "literal")
+            .map((part) => [part.type, part.value]),
+    );
+
+    return `${parts.year}-${parts.month}-${parts.day}`;
+}
 
 export function getRemovalOption(removalId: BookingSelections["removalId"]) {
     return (
@@ -298,7 +317,7 @@ export function groupSlotsByDay(slots: AvailableAppointmentSlot[]) {
     >();
 
     for (const slot of slots) {
-        const key = getStudioDateKey(new Date(slot.startsAt));
+        const key = getUserDateKey(slot.startsAt);
 
         if (!groups.has(key)) {
             groups.set(key, {

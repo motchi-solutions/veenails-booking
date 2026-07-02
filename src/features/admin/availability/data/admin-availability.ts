@@ -42,27 +42,19 @@ export async function getAdminAvailabilityPageData() {
     await requireAdmin();
     const admin = createAdminClient();
 
-    const [slotsResult, settingsResult] = await Promise.all([
-        admin
-            .from("availability_slots")
-            .select(
-                "id, starts_at, ends_at, status, active, notes, created_at, regulars_first, public_access_at, google_calendar_event_id, google_calendar_synced_at, google_calendar_sync_error, bookings:bookings!bookings_slot_id_fkey(id, status, created_at)",
-            )
-            .order("starts_at", { ascending: false })
-            .limit(240)
-            .overrideTypes<SlotRow[]>(),
-        admin
-            .from("booking_settings")
-            .select("regular_early_access_hours")
-            .eq("id", 1)
-            .maybeSingle()
-            .overrideTypes<{ regular_early_access_hours: number } | null>(),
-    ]);
+    const slotsResult = await admin
+        .from("availability_slots")
+        .select(
+            "id, starts_at, ends_at, status, active, notes, created_at, regulars_first, public_access_at, google_calendar_event_id, google_calendar_synced_at, google_calendar_sync_error, bookings:bookings!bookings_slot_id_fkey(id, status, created_at)",
+        )
+        .order("starts_at", { ascending: false })
+        .limit(240)
+        .overrideTypes<SlotRow[]>();
 
-    if (slotsResult.error || settingsResult.error) {
+    if (slotsResult.error) {
         console.error(
             "[admin:availability:data]",
-            slotsResult.error ?? settingsResult.error,
+            slotsResult.error,
         );
         throw new Error("We couldn't load availability.");
     }
@@ -126,9 +118,5 @@ export async function getAdminAvailabilityPageData() {
                             : "pending") as AdminAvailabilitySlot["googleSyncState"],
             };
         }),
-        regularEarlyAccessHours: Math.max(
-            0,
-            Number(settingsResult.data?.regular_early_access_hours ?? 24),
-        ),
     };
 }

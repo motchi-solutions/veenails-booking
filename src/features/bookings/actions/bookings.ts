@@ -33,6 +33,7 @@ import type {
 } from "@/features/bookings/new-booking/types";
 import type { Database } from "@/types/supabase";
 import { buildBookingServiceLineItems } from "@/features/bookings/utils/booking-line-items";
+import { formatStudioAppointmentDateTime } from "@/lib/utils/studio-time";
 
 type DesignTierRow = Pick<
     Database["public"]["Tables"]["design_tiers"]["Row"],
@@ -629,10 +630,9 @@ export async function requestBookingCancellation(
         } | null;
     };
     const appointment = typedBooking.availability_slots?.starts_at
-        ? new Intl.DateTimeFormat("en-CA", {
-              dateStyle: "full",
-              timeStyle: "short",
-          }).format(new Date(typedBooking.availability_slots.starts_at))
+        ? formatStudioAppointmentDateTime(
+              typedBooking.availability_slots.starts_at,
+          )
         : "Not scheduled";
     const outcome =
         requestedRefundMethod === "account_credit"

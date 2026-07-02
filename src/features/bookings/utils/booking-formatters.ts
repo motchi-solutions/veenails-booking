@@ -1,8 +1,10 @@
 import type { BookingSummary } from "@/features/bookings/types/bookings";
-import { STUDIO_TIME_ZONE } from "@/lib/utils/studio-time";
+import { getUserTimeZone } from "@/lib/utils/studio-time";
+
+const userTimeZone = getUserTimeZone();
 
 const dateTimeFormatter = new Intl.DateTimeFormat("en-CA", {
-    timeZone: STUDIO_TIME_ZONE,
+    timeZone: userTimeZone,
     weekday: "short",
     month: "short",
     day: "numeric",
@@ -11,14 +13,14 @@ const dateTimeFormatter = new Intl.DateTimeFormat("en-CA", {
 });
 
 const dateFormatter = new Intl.DateTimeFormat("en-CA", {
-    timeZone: STUDIO_TIME_ZONE,
+    timeZone: userTimeZone,
     month: "short",
     day: "numeric",
     year: "numeric",
 });
 
 const timeFormatter = new Intl.DateTimeFormat("en-CA", {
-    timeZone: STUDIO_TIME_ZONE,
+    timeZone: userTimeZone,
     hour: "numeric",
     minute: "2-digit",
 });

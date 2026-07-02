@@ -6,6 +6,7 @@ import { resolveBookingRecipient } from "@/features/notifications/utils/resolve-
 import { sendTransactionalEmail } from "@/lib/email/brevo";
 import { getEmailConfig } from "@/lib/email/config";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { formatStudioAppointmentDateTime } from "@/lib/utils/studio-time";
 
 export type TestEmailState = {
     error: string;
@@ -67,13 +68,14 @@ export async function sendTestEmailAction(
     }
 
     const recipient = resolveBookingRecipient({ profiles: profile });
+    const diagnosticTime = formatStudioAppointmentDateTime(new Date());
     const template = appointmentStatusTemplate({
         name: recipient.displayName,
         reference: "EMAIL-TEST",
         status: "email test",
-        appointment: "Configuration check",
+        appointment: diagnosticTime,
         message:
-            "Brevo configuration, sender authorization, and recipient resolution are working.",
+            "Brevo configuration, sender authorization, recipient resolution, and Toronto timezone formatting are working.",
     });
     const delivery = await sendTransactionalEmail({
         to: {

@@ -26,13 +26,11 @@ function friendlyStatus(slot: AdminAvailabilitySlot) {
 
 export default function AvailabilitySlotCard({
     slot,
-    regularEarlyAccessHours,
     history = false,
     selected = false,
     onSelectedChange,
 }: {
     slot: AdminAvailabilitySlot;
-    regularEarlyAccessHours: number;
     history?: boolean;
     selected?: boolean;
     onSelectedChange?: (checked: boolean) => void;
@@ -203,7 +201,6 @@ export default function AvailabilitySlotCard({
             {editing ? (
                 <EditAvailabilitySlotForm
                     slot={slot}
-                    regularEarlyAccessHours={regularEarlyAccessHours}
                     onClose={() => setEditing(false)}
                 />
             ) : null}

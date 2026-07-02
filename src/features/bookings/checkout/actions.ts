@@ -29,6 +29,7 @@ import { sendTransactionalEmail } from "@/lib/email/brevo";
 import { getAppBaseUrl, getEmailConfig } from "@/lib/email/config";
 import { calculateCheckoutPaymentPlan } from "@/features/bookings/utils/booking-ledger";
 import { buildBookingServiceLineItems } from "@/features/bookings/utils/booking-line-items";
+import { formatStudioAppointmentDateTime } from "@/lib/utils/studio-time";
 
 type BookingSettingsRow = Pick<
     Database["public"]["Tables"]["booking_settings"]["Row"],
@@ -806,7 +807,9 @@ export async function submitBookingCheckout(
             throw eventError;
         }
 
-        const appointment = new Intl.DateTimeFormat("en-CA", { dateStyle: "full", timeStyle: "short" }).format(new Date(lockedSlot.starts_at));
+        const appointment = formatStudioAppointmentDateTime(
+            lockedSlot.starts_at,
+        );
         const siteUrl = getAppBaseUrl();
         const adminEmail = getEmailConfig().adminNotificationEmail;
         const template = appointmentStatusTemplate({ name: bookingProfile?.display_name ?? "Client", reference: bookingReference, status: "requested", appointment, message: "Your booking request was submitted and your deposit was marked as sent.", detailsUrl: siteUrl ? `${siteUrl}/booking/${bookingReference}` : undefined });

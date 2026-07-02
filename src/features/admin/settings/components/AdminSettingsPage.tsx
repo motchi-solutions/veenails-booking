@@ -14,10 +14,6 @@ function settingsSignature(settings: AdminBookingSettings) {
         ["depositAmount", String(settings.deposit_amount)],
         ["bookingFeeRate", String(settings.booking_fee_rate)],
         ["bookingFeeMode", settings.booking_fee_mode],
-        [
-            "regularEarlyAccessHours",
-            String(settings.regular_early_access_hours),
-        ],
         ["holdMinutes", String(settings.hold_minutes)],
         ["etransferEmail", settings.etransfer_email ?? ""],
         ["instagramUrl", settings.instagram_url ?? ""],
@@ -101,7 +97,7 @@ export default function AdminSettingsPage({
                             name="bookingFeeRate"
                             type="number"
                             step="0.01"
-                            min="0"
+                            min="1"
                             max="100"
                             defaultValue={settings.booking_fee_rate}
                         />
@@ -130,23 +126,6 @@ export default function AdminSettingsPage({
                             {bookingFeeMode === "included_in_price"
                                 ? "Clients see the appointment price only. The studio absorbs the booking fee."
                                 : "The booking fee is shown separately and added to the client’s total."}
-                        </span>
-                    </label>
-                    <label className="space-y-2">
-                        <span className="label-text">
-                            Regulars early access (hours)
-                        </span>
-                        <input
-                            className="input-field"
-                            name="regularEarlyAccessHours"
-                            type="number"
-                            step="1"
-                            min="0"
-                            max="168"
-                            defaultValue={settings.regular_early_access_hours}
-                        />
-                        <span className="block text-xs text-muted">
-                            Priority slots become public after this many hours.
                         </span>
                     </label>
                     <label className="space-y-2">

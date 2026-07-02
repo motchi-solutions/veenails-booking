@@ -6,6 +6,10 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { studioDateTimeToDate } from "@/features/admin/availability/utils/slot-time-options";
 import type { Enums } from "@/types/supabase";
 import { syncAvailabilitySlotToGoogleCalendar } from "@/features/integrations/google-calendar/services/sync";
+import {
+    DEFAULT_PRIORITY_ACCESS_HOURS,
+    studioDateTimeInputToDate,
+} from "@/lib/utils/studio-time";
 
 const EDITABLE_STATUSES: Enums<"slot_status">[] = ["available", "blocked"];
 const FALLBACK_SLOT_DURATION_MINUTES = 90;
@@ -42,6 +46,22 @@ function parseRequiredSlotDate(formData: FormData, timeKey: string) {
         throw new Error("Choose a valid date and time.");
     }
     return value;
+}
+
+function getPriorityReleaseAt(formData: FormData, now = new Date()) {
+    const input = String(formData.get("priorityReleaseAt") ?? "").trim();
+    const releaseAt = input
+        ? studioDateTimeInputToDate(input)
+        : new Date(
+              now.getTime() +
+                  DEFAULT_PRIORITY_ACCESS_HOURS * 60 * 60 * 1000,
+          );
+
+    if (releaseAt <= now) {
+        throw new Error("Public release must be in the future.");
+    }
+
+    return releaseAt;
 }
 
 async function assertNoOverlap(
@@ -104,7 +124,8 @@ export async function createAvailabilitySlotAction(
             String(formData.get("accessMode") ?? "priority") === "everyone"
                 ? "everyone"
                 : "priority";
-        const regularsFirst = accessMode === "priority";
+        const regularsFirst =
+            accessMode === "priority" && status === "available";
 
         if ((endsAt && startsAt >= endsAt) || startsAt < new Date()) {
             return actionState({ error: "Choose a valid future start time.", success: "" });
@@ -116,19 +137,9 @@ export async function createAvailabilitySlotAction(
 
         const admin = createAdminClient();
         await assertNoOverlap(admin, startsAt, endsAt);
-        const { data: settings } = await admin
-            .from("booking_settings")
-            .select("regular_early_access_hours")
-            .eq("id", 1)
-            .maybeSingle()
-            .overrideTypes<{ regular_early_access_hours: number } | null>();
-        const earlyAccessHours = Math.min(
-            168,
-            Math.max(0, Number(settings?.regular_early_access_hours ?? 24)),
-        );
         const publicAccessAt =
-            regularsFirst && status === "available"
-                ? new Date(Date.now() + earlyAccessHours * 60 * 60 * 1000)
+            regularsFirst
+                ? getPriorityReleaseAt(formData)
                 : new Date();
         const { data: slot, error } = await admin
             .from("availability_slots")
@@ -138,7 +149,7 @@ export async function createAvailabilitySlotAction(
                 status,
                 notes,
                 created_by: user.id,
-                regulars_first: regularsFirst && status === "available",
+                regulars_first: regularsFirst,
                 public_access_at: publicAccessAt.toISOString(),
             })
             .select("id")
@@ -188,53 +199,25 @@ async function updateAvailabilitySlot(formData: FormData) {
 
     const admin = createAdminClient();
     await assertNoOverlap(admin, startsAt, endsAt, slotId);
-    const [currentResult, settingsResult] = await Promise.all([
-        admin
-            .from("availability_slots")
-            .select("id, regulars_first, public_access_at")
-            .eq("id", slotId)
-            .eq("active", true)
-            .in("status", EDITABLE_STATUSES)
-            .maybeSingle()
-            .overrideTypes<{
-                id: string;
-                regulars_first: boolean;
-                public_access_at: string;
-            } | null>(),
-        admin
-            .from("booking_settings")
-            .select("regular_early_access_hours")
-            .eq("id", 1)
-            .maybeSingle()
-            .overrideTypes<{ regular_early_access_hours: number } | null>(),
-    ]);
+    const currentResult = await admin
+        .from("availability_slots")
+        .select("id")
+        .eq("id", slotId)
+        .eq("active", true)
+        .in("status", EDITABLE_STATUSES)
+        .maybeSingle();
 
-    if (
-        currentResult.error ||
-        settingsResult.error ||
-        !currentResult.data
-    ) {
+    if (currentResult.error || !currentResult.data) {
         console.error(
             "[admin:availability:update-data]",
-            currentResult.error ?? settingsResult.error,
+            currentResult.error,
         );
         throw new Error("Only open or blocked future slots can be edited.");
     }
 
     const regularsFirst = accessMode === "priority" && status === "available";
-    const earlyAccessHours = Math.min(
-        168,
-        Math.max(
-            0,
-            Number(settingsResult.data?.regular_early_access_hours ?? 24),
-        ),
-    );
     const publicAccessAt = regularsFirst
-        ? currentResult.data.regulars_first
-            ? currentResult.data.public_access_at
-            : new Date(
-                  Date.now() + earlyAccessHours * 60 * 60 * 1000,
-              ).toISOString()
+        ? getPriorityReleaseAt(formData).toISOString()
         : new Date().toISOString();
 
     const { data, error } = await admin

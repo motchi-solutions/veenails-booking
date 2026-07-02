@@ -22,10 +22,6 @@ export async function updateBookingSettingsAction(formData: FormData) {
     const depositAmount = numberFromForm(formData, "depositAmount");
     const bookingFeeRate = numberFromForm(formData, "bookingFeeRate");
     const holdMinutes = numberFromForm(formData, "holdMinutes");
-    const regularEarlyAccessHours = numberFromForm(
-        formData,
-        "regularEarlyAccessHours",
-    );
     const bookingFeeMode = String(formData.get("bookingFeeMode") ?? "");
     const etransferEmail =
         String(formData.get("etransferEmail") ?? "").trim() || null;
@@ -37,8 +33,7 @@ export async function updateBookingSettingsAction(formData: FormData) {
         !id ||
         depositAmount === null ||
         bookingFeeRate === null ||
-        holdMinutes === null ||
-        regularEarlyAccessHours === null
+        holdMinutes === null
     ) {
         return {
             error: "Booking settings are incomplete.",
@@ -75,10 +70,7 @@ export async function updateBookingSettingsAction(formData: FormData) {
         bookingFeeRate < 0 ||
         bookingFeeRate > 100 ||
         holdMinutes < 1 ||
-        !Number.isInteger(holdMinutes) ||
-        regularEarlyAccessHours < 0 ||
-        regularEarlyAccessHours > 168 ||
-        !Number.isInteger(regularEarlyAccessHours)
+        !Number.isInteger(holdMinutes)
     ) {
         return {
             error: "Booking settings contain an invalid value.",
@@ -95,7 +87,6 @@ export async function updateBookingSettingsAction(formData: FormData) {
             hold_minutes: holdMinutes,
             etransfer_email: etransferEmail,
             instagram_url: instagramUrl,
-            regular_early_access_hours: regularEarlyAccessHours,
         })
         .eq("id", id);
 

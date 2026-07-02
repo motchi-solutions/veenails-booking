@@ -27,7 +27,7 @@ export const bulkAvailabilityActionCopy: Record<
         label: "Set priority access",
         title: "Set priority access?",
         description:
-            "General clients will see these slots after the current early-access window.",
+            "Choose exactly when these slots become visible to general clients.",
     },
     deactivate: {
         label: "Deactivate selected slots",
@@ -47,13 +47,25 @@ export function getPriorityAccessActionLabel(
             new Date(slot.publicAccessAt).getTime() <= now,
     );
     const hasPublicAccess = slots.some((slot) => !slot.regularsFirst);
+    const hasActivePriority = slots.some(
+        (slot) =>
+            slot.regularsFirst &&
+            new Date(slot.publicAccessAt).getTime() > now,
+    );
 
-    if (hasExpiredPriority && hasPublicAccess) {
+    if (
+        [hasExpiredPriority, hasPublicAccess, hasActivePriority].filter(Boolean)
+            .length > 1
+    ) {
         return "Set / reset priority access";
     }
 
     if (hasExpiredPriority) {
         return "Reset Priority Access Window";
+    }
+
+    if (hasActivePriority) {
+        return "Change priority release time";
     }
 
     return "Set priority access";
@@ -84,10 +96,7 @@ export function isSlotEligibleForBulkAction(
     }
 
     if (action === "priority") {
-        return (
-            !slot.regularsFirst ||
-            new Date(slot.publicAccessAt).getTime() <= now
-        );
+        return true;
     }
 
     return true;

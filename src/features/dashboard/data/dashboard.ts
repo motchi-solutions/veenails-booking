@@ -5,8 +5,8 @@ import type { DashboardOverviewData } from "@/features/dashboard/types/dashboard
 import type { Enums } from "@/types/supabase";
 import {
     addDaysToStudioDateKey,
+    addMonthsToStudioDateKey,
     getStudioDateKey,
-    getStudioDateKeyDay,
     studioDateTimeToDate,
 } from "@/lib/utils/studio-time";
 
@@ -16,14 +16,6 @@ const CLIENT_VISIBLE_SLOT_STATUSES: Enums<"slot_status">[] = [
     "requested",
     "confirmed",
 ];
-
-function getStartOfCurrentWeekDateKey(date: Date) {
-    const todayKey = getStudioDateKey(date);
-    return addDaysToStudioDateKey(
-        todayKey,
-        -getStudioDateKeyDay(todayKey),
-    );
-}
 
 function getFallbackDisplayName(email?: string | null) {
     return email?.split("@")[0] || "Client";
@@ -44,9 +36,10 @@ export async function getDashboardOverviewData(
     const supabase = await createClient();
     const now = new Date();
     const nowIso = now.toISOString();
-    const weekStartDateKey = getStartOfCurrentWeekDateKey(now);
-    const weekStartIso = studioDateTimeToDate(
-        weekStartDateKey,
+    const todayKey = getStudioDateKey(now);
+    const calendarEndKey = addMonthsToStudioDateKey(todayKey, 1);
+    const calendarEndExclusive = studioDateTimeToDate(
+        addDaysToStudioDateKey(calendarEndKey, 1),
         "00:00",
     ).toISOString();
 
@@ -67,7 +60,8 @@ export async function getDashboardOverviewData(
         .select("id, starts_at, ends_at, status, active, regulars_first, public_access_at")
         .eq("active", true)
         .in("status", CLIENT_VISIBLE_SLOT_STATUSES)
-        .gte("starts_at", weekStartIso)
+        .gte("starts_at", nowIso)
+        .lt("starts_at", calendarEndExclusive)
         .order("starts_at", { ascending: true });
 
     if (!profile?.is_regular) {
@@ -122,8 +116,9 @@ export async function getDashboardOverviewData(
     );
     const days = buildAvailabilityDays(
         visibleAvailability,
-        weekStartDateKey,
-        getStudioDateKey(now),
+        todayKey,
+        calendarEndKey,
+        todayKey,
     );
 
     return {
@@ -158,6 +153,7 @@ function buildAvailabilityDays(
         status: Enums<"slot_status">;
     }>,
     startDateKey = getStudioDateKey(),
+    endDateKey = addMonthsToStudioDateKey(startDateKey, 1),
     todayKey = getStudioDateKey(),
 ) {
     const dayMap = new Map<
@@ -178,7 +174,11 @@ function buildAvailabilityDays(
         }
     >();
 
-    for (let offset = 0; offset < 21; offset += 1) {
+    for (
+        let offset = 0;
+        addDaysToStudioDateKey(startDateKey, offset) <= endDateKey;
+        offset += 1
+    ) {
         const key = addDaysToStudioDateKey(startDateKey, offset);
         const date = new Date(`${key}T12:00:00Z`);
 

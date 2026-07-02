@@ -70,7 +70,7 @@ export default function AdminCreateAppointmentPage({
     const [externalEmail, setExternalEmail] = useState("");
     const [externalInstagram, setExternalInstagram] = useState("");
     const [externalPreferredContact, setExternalPreferredContact] =
-        useState<"email" | "instagram">("instagram");
+        useState<"" | "email" | "instagram">("");
 
     const selectedService = getService(serviceId);
     const serviceOptions = selectedService?.options ?? [];
@@ -97,6 +97,24 @@ export default function AdminCreateAppointmentPage({
         appointmentTotal: estimate.total,
         configuredDeposit: settings.depositAmount,
     });
+    const externalContactOptions = [
+        externalInstagram.trim()
+            ? { value: "instagram" as const, label: "Instagram" }
+            : null,
+        externalEmail.trim()
+            ? { value: "email" as const, label: "Email" }
+            : null,
+    ].filter(
+        (
+            option,
+        ): option is { value: "email" | "instagram"; label: string } =>
+            option !== null,
+    );
+    const effectiveExternalPreferredContact = externalContactOptions.some(
+        (option) => option.value === externalPreferredContact,
+    )
+        ? externalPreferredContact
+        : (externalContactOptions[0]?.value ?? "");
 
     useEffect(() => {
         if (!state.messageId) return;
@@ -237,16 +255,14 @@ export default function AdminCreateAppointmentPage({
                                 <AppSelect
                                     label="Preferred contact"
                                     name="clientPreferredContactMethod"
-                                    value={externalPreferredContact}
+                                    value={effectiveExternalPreferredContact}
                                     onChange={(value) =>
                                         setExternalPreferredContact(
-                                            value as "email" | "instagram",
+                                            value as "" | "email" | "instagram",
                                         )
                                     }
-                                    options={[
-                                        { value: "instagram", label: "Instagram" },
-                                        { value: "email", label: "Email" },
-                                    ]}
+                                    options={externalContactOptions}
+                                    placeholder="Add contact details first"
                                     helperText="Add an email address or Instagram handle. Email reminders only send when email is available."
                                 />
                             </div>
