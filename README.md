@@ -1,60 +1,112 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Vee's Nail Studio Booking
 
-## Getting Started
+A full-service appointment portal for Vee's Nail Studio. Clients can create and
+manage bookings, track credits, and maintain their profiles. Staff can manage
+availability, appointments, customers, credits, notifications, and a connected
+Google Calendar from a protected admin area.
 
-First, run the development server:
+## Features
+
+- Email/password and Google authentication through Supabase Auth
+- Guided booking, checkout, rescheduling, and cancellation flows
+- Client dashboard, booking history, profile, and account credits
+- Role-protected admin tools for appointments, availability, and users
+- Transactional email delivery and deduplication through Brevo
+- Google Calendar synchronization for availability and appointments
+- Daily appointment-reminder job through Vercel Cron
+- Responsive public, client, and admin interfaces
+
+## Technology
+
+- Next.js 16 App Router and React 19
+- TypeScript
+- Supabase Auth and Postgres
+- Tailwind CSS 4
+- Brevo transactional email
+- Google Calendar API
+- Vercel hosting and Cron
+
+## Quick start
+
+### Prerequisites
+
+- Node.js 20 or newer
+- npm
+- Access to the existing Supabase project and its configured database
+
+The database schema is not reproducible from this repository alone because
+Supabase migrations are not currently checked in. A new developer therefore
+needs access to the existing project or a separately supplied schema backup.
+
+### Installation
+
+```bash
+git clone <repository-url>
+cd veenails-booking
+npm ci
+cp .env.example .env.local
+```
+
+Fill in the required Supabase variables in `.env.local`, then start the
+development server:
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000).
 
-### Transactional email
+See [Setup and configuration](docs/setup.md) for environment variables,
+provider configuration, admin access, and deployment details.
 
-Brevo notifications are sent server-side and require these deployment variables:
+## Available scripts
 
-```bash
-BREVO_API_KEY=
-BREVO_SENDER_EMAIL=
-BREVO_SENDER_NAME="Vee’s Nail Studio"
-ADMIN_NOTIFICATION_EMAIL=
-CRON_SECRET=
-NEXT_PUBLIC_SITE_URL=
+| Command | Purpose |
+| --- | --- |
+| `npm run dev` | Start the local Next.js development server |
+| `npm run build` | Create a production build |
+| `npm run start` | Serve a completed production build |
+| `npm run lint` | Run ESLint |
+
+## Project structure
+
+```text
+src/
+├── app/          Routes, layouts, metadata, and route handlers
+├── components/   Shared and navigation UI
+├── constants/    Routes and shared static configuration
+├── features/     Domain modules such as bookings, auth, and admin
+├── lib/          Infrastructure clients and cross-feature utilities
+└── types/        Shared and generated database types
 ```
 
-When Brevo is not configured, email attempts are safely recorded as `failed`
-and can be retried after configuration is fixed. Bookings without an email
-recipient are recorded as `skipped` without calling Brevo.
+Application code is organized by feature. Route files should stay thin and
+compose data, actions, and UI from the relevant directory under `src/features`.
+The `@/*` import alias points to `src/*`.
 
-Vercel calls `/api/cron/appointment-reminders` daily at 12:00 UTC. The route requires
-`Authorization: Bearer <CRON_SECRET>` and sends one deduplicated reminder for
-confirmed appointments on the next studio-calendar day.
+For route groups, data flow, integrations, and security boundaries, read the
+[architecture guide](docs/architecture.md).
 
-See [the transactional email matrix](docs/email-notifications.md) for client
-emails, admin copies, notification types, and deduplication keys.
+## Documentation
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+- [Documentation index](docs/README.md)
+- [Setup and configuration](docs/setup.md)
+- [Architecture](docs/architecture.md)
+- [Transactional email matrix](docs/email-notifications.md)
+- [Google Calendar manual verification](docs/google-calendar-manual-tests.md)
+- [Freestyle booking manual verification](docs/freestyle-booking-manual-tests.md)
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Deployment
 
-## Learn More
+The application is designed for Vercel. Configure all environment variables in
+the target Vercel environments before deploying. `vercel.json` schedules the
+appointment-reminder endpoint daily at 12:00 UTC.
 
-To learn more about Next.js, take a look at the following resources:
+Production deployments should use the production site URL for
+`NEXT_PUBLIC_SITE_URL` and the matching Google OAuth callback URL. Never expose
+the Supabase secret key, Brevo key, Google client secret, cron secret, or token
+encryption key to browser code.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## License
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Licensed under the [GNU General Public License v3.0](LICENSE).

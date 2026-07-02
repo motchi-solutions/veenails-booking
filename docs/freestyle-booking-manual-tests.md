@@ -1,7 +1,9 @@
 # Freestyle booking verification
 
-Apply `supabase/migrations/20260628222414_add_service_design_tier_requirement.sql`
-in the Supabase SQL editor before deploying the application changes.
+The target Supabase schema must include
+`pricing_items.requires_design_tier`. This repository does not currently
+contain the migration that introduced the column, so confirm the target project
+has the expected schema before deploying or running these checks.
 
 ## Database smoke check
 
