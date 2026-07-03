@@ -23,7 +23,7 @@ export default function CheckoutPoliciesCard({
                 >
                     I have read and agree to the{" "}
                     <Link
-                        href="/legal/privacy-policy.pdf"
+                        href="/privacy-policy"
                         target="_blank"
                         rel="noreferrer"
                         className="link-default font-semibold"

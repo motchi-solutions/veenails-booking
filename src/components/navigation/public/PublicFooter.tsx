@@ -85,15 +85,12 @@ export default function PublicFooter() {
                         </p>
 
                         <div className="mt-4 flex flex-col items-start gap-2 text-sm">
-                            <a
-                                href="/legal/privacy-policy.pdf"
-                                target="_blank"
-                                rel="noreferrer"
-                                className="link-muted inline-flex items-center gap-1"
+                            <Link
+                                href="/privacy-policy"
+                                className="link-muted"
                             >
                                 Privacy Policy
-                                <FiExternalLink className="h-3.5 w-3.5" />
-                            </a>
+                            </Link>
 
                             <a
                                 href="/legal/terms-of-service.pdf"

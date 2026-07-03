@@ -70,7 +70,7 @@ export default function FormCheckbox({
                         </Link>{" "}
                         and{" "}
                         <Link
-                            href="/legal/privacy-policy.pdf"
+                            href="/privacy-policy"
                             target="_blank"
                             rel="noreferrer"
                             className="link-default inline-flex items-center gap-1 font-semibold"
