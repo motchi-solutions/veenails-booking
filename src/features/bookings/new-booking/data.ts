@@ -6,11 +6,10 @@ import type {
 } from "@/features/bookings/new-booking/types";
 import { getUser } from "@/features/auth/guards/get-user";
 import type { Database } from "@/types/supabase";
-import type { Enums } from "@/types/supabase";
 
 type SlotRow = Pick<
     Database["public"]["Tables"]["availability_slots"]["Row"],
-    "id" | "starts_at" | "ends_at" | "status"
+    "id" | "starts_at" | "ends_at"
 > & {
     regulars_first: boolean;
     public_access_at: string;
@@ -40,17 +39,6 @@ type DesignTierImageRow = Pick<
     | "display_order"
 >;
 
-const CLIENT_VISIBLE_SLOT_STATUSES: Enums<"slot_status">[] = [
-    "available",
-    "held",
-    "requested",
-    "confirmed",
-];
-
-function getClientSlotAvailability(status: Enums<"slot_status">) {
-    return status === "available" ? "available" : "booked";
-}
-
 export async function getNewBookingPageData(): Promise<{
     slots: AvailableAppointmentSlot[];
     settings: BookingSettingsSummary;
@@ -72,14 +60,16 @@ export async function getNewBookingPageData(): Promise<{
 
     let slotsQuery = supabase
         .from("availability_slots")
-        .select("id, starts_at, ends_at, status, regulars_first, public_access_at")
+        .select("id, starts_at, ends_at, regulars_first, public_access_at")
         .eq("active", true)
-        .in("status", CLIENT_VISIBLE_SLOT_STATUSES)
+        .eq("status", "available")
         .gte("starts_at", now)
         .order("starts_at", { ascending: true });
 
     if (!isRegular) {
-        slotsQuery = slotsQuery.or(`status.neq.available,regulars_first.eq.false,public_access_at.lte.${now}`);
+        slotsQuery = slotsQuery.or(
+            `regulars_first.eq.false,public_access_at.lte.${now}`,
+        );
     }
 
     const [
@@ -156,7 +146,6 @@ export async function getNewBookingPageData(): Promise<{
         slots: (slotsResult.data ?? [])
             .filter(
                 (slot) =>
-                    slot.status !== "available" ||
                     isRegular ||
                     !slot.regulars_first ||
                     new Date(slot.public_access_at).getTime() <=
@@ -166,7 +155,7 @@ export async function getNewBookingPageData(): Promise<{
             id: slot.id,
             startsAt: slot.starts_at,
             endsAt: slot.ends_at,
-            availability: getClientSlotAvailability(slot.status),
+            availability: "available",
         })),
         settings: settingsResult.data
             ? {
