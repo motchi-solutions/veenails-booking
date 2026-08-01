@@ -22,7 +22,7 @@ function getVisibleDayCountSnapshot() {
     }
 
     if (window.innerWidth >= 1280) {
-        return 5;
+        return 4;
     }
 
     if (window.innerWidth >= 768) {
@@ -122,7 +122,7 @@ export default function DashboardAvailabilityCalendar({
                 </div>
             ) : null}
 
-            <div className="mt-5 grid gap-4 md:grid-cols-3 xl:grid-cols-5">
+            <div className="mt-5 grid gap-4 md:grid-cols-3 xl:grid-cols-4">
                 {visibleDays.map((day) => (
                     <AvailabilityCalendarDayColumn key={day.date} day={day} />
                 ))}
