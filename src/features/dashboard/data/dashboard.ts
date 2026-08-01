@@ -66,7 +66,7 @@ export async function getDashboardOverviewData(
 
     if (!profile?.is_regular) {
         availabilityQuery = availabilityQuery.or(
-            `status.neq.available,regulars_first.eq.false,public_access_at.lte.${nowIso}`,
+            `regulars_first.eq.false,public_access_at.lte.${nowIso}`,
         );
     }
 
@@ -107,12 +107,10 @@ export async function getDashboardOverviewData(
     const profileEmail = profile?.email ?? fallbackEmail ?? "";
     const visibleAvailability = (availabilityResult.data ?? []).filter(
         (slot) =>
-            slot.status === "available"
-                ? new Date(slot.starts_at).getTime() >= now.getTime() &&
-                  (profile?.is_regular ||
-                      !slot.regulars_first ||
-                      new Date(slot.public_access_at).getTime() <= now.getTime())
-                : true,
+            new Date(slot.starts_at).getTime() >= now.getTime() &&
+            (profile?.is_regular ||
+                !slot.regulars_first ||
+                new Date(slot.public_access_at).getTime() <= now.getTime()),
     );
     const days = buildAvailabilityDays(
         visibleAvailability,

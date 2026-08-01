@@ -14,12 +14,14 @@ import type { BulkAvailabilityAction } from "@/features/admin/availability/utils
 function SlotList({
     slots,
     history = false,
+    emptyMessage,
     selectedIds,
     onSelectedChange,
     onToggleAll,
 }: {
     slots: AdminAvailabilitySlot[];
     history?: boolean;
+    emptyMessage?: string;
     selectedIds: Set<string>;
     onSelectedChange: (slotId: string, checked: boolean) => void;
     onToggleAll: (slotIds: string[], selected: boolean) => void;
@@ -28,9 +30,10 @@ function SlotList({
         return (
             <AdminEmptyState
                 message={
-                    history
+                    emptyMessage ??
+                    (history
                         ? "No past availability yet."
-                        : "No future availability yet."
+                        : "No future availability yet.")
                 }
             />
         );
@@ -88,6 +91,8 @@ export default function AdminAvailabilityPage({
             (slot) => slot.active && new Date(slot.startsAt).getTime() >= now,
         )
         .sort((a, b) => +new Date(a.startsAt) - +new Date(b.startsAt));
+    const futureUnbooked = future.filter((slot) => !slot.bookingId);
+    const futureBooked = future.filter((slot) => Boolean(slot.bookingId));
     const past = slots.filter(
         (slot) =>
             slot.active && new Date(slot.startsAt).getTime() < now,
@@ -178,7 +183,7 @@ export default function AdminAvailabilityPage({
                         Future availability
                     </h2>
                     <p className="mt-1 text-sm text-muted">
-                        Open, booked, and blocked time coming up.
+                        Open and blocked time coming up.
                     </p>
                 </div>
                 <AvailabilitySelectionToolbar
@@ -188,12 +193,34 @@ export default function AdminAvailabilityPage({
                     onClear={clearSelection}
                 />
                 <SlotList
-                    slots={future}
+                    slots={futureUnbooked}
+                    emptyMessage="No unbooked future availability yet."
                     selectedIds={visibleSelectedIds}
                     onSelectedChange={setSlotSelected}
                     onToggleAll={toggleAll}
                 />
             </section>
+            {futureBooked.length > 0 ? (
+                <details className="rounded-3xl border border-border/60 bg-surface p-5 shadow-sm sm:p-7">
+                    <summary className="cursor-pointer font-semibold text-foreground">
+                        Booked future slots
+                        <span className="ml-2 text-sm font-normal text-muted">
+                            {futureBooked.length} slots
+                        </span>
+                    </summary>
+                    <p className="mt-2 text-sm text-muted">
+                        Upcoming availability tied to a booking or request.
+                    </p>
+                    <div className="mt-4 space-y-3">
+                        <SlotList
+                            slots={futureBooked}
+                            selectedIds={visibleSelectedIds}
+                            onSelectedChange={setSlotSelected}
+                            onToggleAll={toggleAll}
+                        />
+                    </div>
+                </details>
+            ) : null}
             <details className="rounded-3xl border border-border/60 bg-surface p-5 shadow-sm sm:p-7">
                 <summary className="cursor-pointer font-semibold text-foreground">
                     Past availability{" "}
