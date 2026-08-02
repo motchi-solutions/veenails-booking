@@ -15,6 +15,8 @@
   covers availability and appointment event lifecycles.
 - [Freestyle booking verification](freestyle-booking-manual-tests.md) covers
   service-selection behavior and database smoke checks.
+- [Website fee invoicing](website-fee-invoicing.md) documents the 3% rule,
+  monthly proof, invoice issuance, recovery workflow, and safe admin testing.
 
 Keep operational behavior documented beside the relevant manual verification
 guide. Update the root README when prerequisites, scripts, or major

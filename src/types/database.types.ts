@@ -7,36 +7,6 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instantiate createClient with right options
-  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
-  __InternalSupabase: {
-    PostgrestVersion: "14.5"
-  }
-  graphql_public: {
-    Tables: {
-      [_ in never]: never
-    }
-    Views: {
-      [_ in never]: never
-    }
-    Functions: {
-      graphql: {
-        Args: {
-          extensions?: Json
-          operationName?: string
-          query?: string
-          variables?: Json
-        }
-        Returns: Json
-      }
-    }
-    Enums: {
-      [_ in never]: never
-    }
-    CompositeTypes: {
-      [_ in never]: never
-    }
-  }
   public: {
     Tables: {
       admin_users: {
@@ -403,6 +373,42 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      booking_payment_audit_log: {
+        Row: {
+          actor_user_id: string | null
+          changed_at: string
+          database_role: string
+          id: number
+          new_record: Json | null
+          old_record: Json | null
+          operation: string
+          payment_id: string | null
+          transaction_id: number
+        }
+        Insert: {
+          actor_user_id?: string | null
+          changed_at?: string
+          database_role: string
+          id?: never
+          new_record?: Json | null
+          old_record?: Json | null
+          operation: string
+          payment_id?: string | null
+          transaction_id: number
+        }
+        Update: {
+          actor_user_id?: string | null
+          changed_at?: string
+          database_role?: string
+          id?: never
+          new_record?: Json | null
+          old_record?: Json | null
+          operation?: string
+          payment_id?: string | null
+          transaction_id?: number
+        }
+        Relationships: []
       }
       booking_payments: {
         Row: {
@@ -1101,45 +1107,6 @@ export type Database = {
           },
         ]
       }
-      monthly_website_invoices: {
-        Row: {
-          billing_month: string
-          created_at: string
-          fee_total: number
-          id: string
-          notes: string | null
-          paid_at: string | null
-          sent_at: string | null
-          status: Database["public"]["Enums"]["website_invoice_status"]
-          subtotal_bookings: number
-          updated_at: string
-        }
-        Insert: {
-          billing_month: string
-          created_at?: string
-          fee_total?: number
-          id?: string
-          notes?: string | null
-          paid_at?: string | null
-          sent_at?: string | null
-          status?: Database["public"]["Enums"]["website_invoice_status"]
-          subtotal_bookings?: number
-          updated_at?: string
-        }
-        Update: {
-          billing_month?: string
-          created_at?: string
-          fee_total?: number
-          id?: string
-          notes?: string | null
-          paid_at?: string | null
-          sent_at?: string | null
-          status?: Database["public"]["Enums"]["website_invoice_status"]
-          subtotal_bookings?: number
-          updated_at?: string
-        }
-        Relationships: []
-      }
       notification_logs: {
         Row: {
           booking_id: string | null
@@ -1530,69 +1497,241 @@ export type Database = {
           },
         ]
       }
-      website_fee_records: {
+      website_fee_invoice_lines: {
         Row: {
-          billing_month: string
-          booking_completed_at: string | null
           booking_id: string
-          booking_total: number
+          booking_reference_snapshot: string
+          calculated_fee_unrounded: number | null
           created_at: string
-          fee_amount: number
-          fee_mode: Database["public"]["Enums"]["fee_mode"]
-          fee_rate: number
+          eligible_net_amount_snapshot: number
+          fee_rate_percent_snapshot: number
           id: string
-          monthly_invoice_id: string | null
-          status: Database["public"]["Enums"]["website_fee_status"]
-          updated_at: string
+          invoice_id: string
+          paid_at_snapshot: string
+          payment_method_snapshot: string
+          payment_status_snapshot: string
+          payment_type_snapshot: string
+          recorded_amount_snapshot: number
+          source_billing_month: string
+          source_payment_id: string
         }
         Insert: {
-          billing_month: string
-          booking_completed_at?: string | null
           booking_id: string
-          booking_total?: number
+          booking_reference_snapshot: string
+          calculated_fee_unrounded?: number | null
           created_at?: string
-          fee_amount?: number
-          fee_mode?: Database["public"]["Enums"]["fee_mode"]
-          fee_rate?: number
+          eligible_net_amount_snapshot: number
+          fee_rate_percent_snapshot?: number
           id?: string
-          monthly_invoice_id?: string | null
-          status?: Database["public"]["Enums"]["website_fee_status"]
-          updated_at?: string
+          invoice_id: string
+          paid_at_snapshot: string
+          payment_method_snapshot: string
+          payment_status_snapshot: string
+          payment_type_snapshot: string
+          recorded_amount_snapshot: number
+          source_billing_month: string
+          source_payment_id: string
         }
         Update: {
-          billing_month?: string
-          booking_completed_at?: string | null
           booking_id?: string
-          booking_total?: number
+          booking_reference_snapshot?: string
+          calculated_fee_unrounded?: number | null
           created_at?: string
-          fee_amount?: number
-          fee_mode?: Database["public"]["Enums"]["fee_mode"]
-          fee_rate?: number
+          eligible_net_amount_snapshot?: number
+          fee_rate_percent_snapshot?: number
           id?: string
-          monthly_invoice_id?: string | null
-          status?: Database["public"]["Enums"]["website_fee_status"]
-          updated_at?: string
+          invoice_id?: string
+          paid_at_snapshot?: string
+          payment_method_snapshot?: string
+          payment_status_snapshot?: string
+          payment_type_snapshot?: string
+          recorded_amount_snapshot?: number
+          source_billing_month?: string
+          source_payment_id?: string
         }
         Relationships: [
           {
-            foreignKeyName: "website_fee_records_booking_id_fkey"
+            foreignKeyName: "website_fee_invoice_lines_booking_id_fkey"
             columns: ["booking_id"]
-            isOneToOne: true
+            isOneToOne: false
             referencedRelation: "booking_totals_view"
             referencedColumns: ["booking_id"]
           },
           {
-            foreignKeyName: "website_fee_records_booking_id_fkey"
+            foreignKeyName: "website_fee_invoice_lines_booking_id_fkey"
             columns: ["booking_id"]
-            isOneToOne: true
+            isOneToOne: false
             referencedRelation: "bookings"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "website_fee_records_monthly_invoice_fk"
-            columns: ["monthly_invoice_id"]
+            foreignKeyName: "website_fee_invoice_lines_invoice_id_fkey"
+            columns: ["invoice_id"]
             isOneToOne: false
-            referencedRelation: "monthly_website_invoices"
+            referencedRelation: "website_fee_invoice_register"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "website_fee_invoice_lines_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "website_fee_invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "website_fee_invoice_lines_source_payment_id_fkey"
+            columns: ["source_payment_id"]
+            isOneToOne: false
+            referencedRelation: "booking_payments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "website_fee_invoice_lines_source_payment_id_fkey"
+            columns: ["source_payment_id"]
+            isOneToOne: false
+            referencedRelation: "website_fee_payment_details"
+            referencedColumns: ["payment_id"]
+          },
+          {
+            foreignKeyName: "website_fee_invoice_lines_source_payment_id_fkey"
+            columns: ["source_payment_id"]
+            isOneToOne: false
+            referencedRelation: "website_fee_payment_exceptions"
+            referencedColumns: ["payment_id"]
+          },
+        ]
+      }
+      website_fee_invoices: {
+        Row: {
+          billing_month: string
+          booking_count: number
+          created_at: string
+          currency: string
+          due_date: string | null
+          eligible_net_revenue: number
+          fee_rate_percent: number
+          fee_total: number
+          id: string
+          invoice_number: string
+          issued_at: string | null
+          issued_by: string | null
+          notes: string | null
+          paid_at: string | null
+          period_end: string
+          period_start: string
+          source_line_count: number
+          status: string
+          updated_at: string
+          void_reason: string | null
+          voided_at: string | null
+        }
+        Insert: {
+          billing_month: string
+          booking_count?: number
+          created_at?: string
+          currency?: string
+          due_date?: string | null
+          eligible_net_revenue?: number
+          fee_rate_percent?: number
+          fee_total?: number
+          id?: string
+          invoice_number: string
+          issued_at?: string | null
+          issued_by?: string | null
+          notes?: string | null
+          paid_at?: string | null
+          period_end: string
+          period_start: string
+          source_line_count?: number
+          status?: string
+          updated_at?: string
+          void_reason?: string | null
+          voided_at?: string | null
+        }
+        Update: {
+          billing_month?: string
+          booking_count?: number
+          created_at?: string
+          currency?: string
+          due_date?: string | null
+          eligible_net_revenue?: number
+          fee_rate_percent?: number
+          fee_total?: number
+          id?: string
+          invoice_number?: string
+          issued_at?: string | null
+          issued_by?: string | null
+          notes?: string | null
+          paid_at?: string | null
+          period_end?: string
+          period_start?: string
+          source_line_count?: number
+          status?: string
+          updated_at?: string
+          void_reason?: string | null
+          voided_at?: string | null
+        }
+        Relationships: []
+      }
+      website_fee_workflow_runs: {
+        Row: {
+          admin_alert_sent_at: string | null
+          billing_month: string
+          check_details: Json
+          created_at: string
+          id: string
+          invoice_emailed_at: string | null
+          invoice_id: string | null
+          issue_attempts: number
+          last_checked_at: string | null
+          last_error: string | null
+          review_token_nonce: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          admin_alert_sent_at?: string | null
+          billing_month: string
+          check_details?: Json
+          created_at?: string
+          id?: string
+          invoice_emailed_at?: string | null
+          invoice_id?: string | null
+          issue_attempts?: number
+          last_checked_at?: string | null
+          last_error?: string | null
+          review_token_nonce?: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          admin_alert_sent_at?: string | null
+          billing_month?: string
+          check_details?: Json
+          created_at?: string
+          id?: string
+          invoice_emailed_at?: string | null
+          invoice_id?: string | null
+          issue_attempts?: number
+          last_checked_at?: string | null
+          last_error?: string | null
+          review_token_nonce?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "website_fee_workflow_runs_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "website_fee_invoice_register"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "website_fee_workflow_runs_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "website_fee_invoices"
             referencedColumns: ["id"]
           },
         ]
@@ -1619,9 +1758,253 @@ export type Database = {
           },
         ]
       }
+      monthly_website_fee_totals: {
+        Row: {
+          billing_month: string | null
+          booking_count: number | null
+          eligible_net_revenue: number | null
+          fee_rate_percent: number | null
+          invoice_amount: number | null
+          receipt_count: number | null
+        }
+        Relationships: []
+      }
+      website_fee_invoice_due_now: {
+        Row: {
+          billing_month: string | null
+          booking_count: number | null
+          eligible_net_revenue: number | null
+          fee_rate_percent: number | null
+          invoice_amount: number | null
+          receipt_count: number | null
+        }
+        Relationships: []
+      }
+      website_fee_invoice_evidence: {
+        Row: {
+          booking_id: string | null
+          booking_reference_snapshot: string | null
+          calculated_fee_unrounded: number | null
+          created_at: string | null
+          eligible_net_amount_snapshot: number | null
+          fee_rate_percent_snapshot: number | null
+          id: string | null
+          invoice_billing_month: string | null
+          invoice_id: string | null
+          invoice_number: string | null
+          invoice_status: string | null
+          issued_at: string | null
+          paid_at_snapshot: string | null
+          payment_method_snapshot: string | null
+          payment_status_snapshot: string | null
+          payment_type_snapshot: string | null
+          recorded_amount_snapshot: number | null
+          source_billing_month: string | null
+          source_payment_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "website_fee_invoice_lines_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "booking_totals_view"
+            referencedColumns: ["booking_id"]
+          },
+          {
+            foreignKeyName: "website_fee_invoice_lines_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "website_fee_invoice_lines_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "website_fee_invoice_register"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "website_fee_invoice_lines_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "website_fee_invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "website_fee_invoice_lines_source_payment_id_fkey"
+            columns: ["source_payment_id"]
+            isOneToOne: false
+            referencedRelation: "booking_payments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "website_fee_invoice_lines_source_payment_id_fkey"
+            columns: ["source_payment_id"]
+            isOneToOne: false
+            referencedRelation: "website_fee_payment_details"
+            referencedColumns: ["payment_id"]
+          },
+          {
+            foreignKeyName: "website_fee_invoice_lines_source_payment_id_fkey"
+            columns: ["source_payment_id"]
+            isOneToOne: false
+            referencedRelation: "website_fee_payment_exceptions"
+            referencedColumns: ["payment_id"]
+          },
+        ]
+      }
+      website_fee_invoice_register: {
+        Row: {
+          actual_booking_count: number | null
+          actual_line_count: number | null
+          billing_month: string | null
+          booking_count: number | null
+          created_at: string | null
+          currency: string | null
+          due_date: string | null
+          eligible_net_revenue: number | null
+          fee_difference: number | null
+          fee_rate_percent: number | null
+          fee_total: number | null
+          id: string | null
+          invoice_number: string | null
+          issued_at: string | null
+          issued_by: string | null
+          line_net_revenue: number | null
+          notes: string | null
+          paid_at: string | null
+          period_end: string | null
+          period_start: string | null
+          recalculated_fee_total: number | null
+          source_line_count: number | null
+          status: string | null
+          updated_at: string | null
+          void_reason: string | null
+          voided_at: string | null
+        }
+        Relationships: []
+      }
+      website_fee_invoice_source_drift: {
+        Row: {
+          booking_reference_snapshot: string | null
+          drift_reason: string | null
+          invoice_billing_month: string | null
+          invoice_number: string | null
+          source_payment_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "website_fee_invoice_lines_source_payment_id_fkey"
+            columns: ["source_payment_id"]
+            isOneToOne: false
+            referencedRelation: "booking_payments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "website_fee_invoice_lines_source_payment_id_fkey"
+            columns: ["source_payment_id"]
+            isOneToOne: false
+            referencedRelation: "website_fee_payment_details"
+            referencedColumns: ["payment_id"]
+          },
+          {
+            foreignKeyName: "website_fee_invoice_lines_source_payment_id_fkey"
+            columns: ["source_payment_id"]
+            isOneToOne: false
+            referencedRelation: "website_fee_payment_exceptions"
+            referencedColumns: ["payment_id"]
+          },
+        ]
+      }
+      website_fee_payment_details: {
+        Row: {
+          billing_month: string | null
+          booking_id: string | null
+          booking_reference: string | null
+          eligible_net_amount: number | null
+          fee_rate_percent: number | null
+          method: Database["public"]["Enums"]["payment_method"] | null
+          paid_at: string | null
+          payment_id: string | null
+          payment_type: Database["public"]["Enums"]["payment_type"] | null
+          recorded_amount: number | null
+          status: Database["public"]["Enums"]["payment_status"] | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "booking_payments_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "booking_totals_view"
+            referencedColumns: ["booking_id"]
+          },
+          {
+            foreignKeyName: "booking_payments_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      website_fee_payment_exceptions: {
+        Row: {
+          amount: number | null
+          booking_id: string | null
+          booking_reference: string | null
+          created_at: string | null
+          exception_code: string | null
+          method: Database["public"]["Enums"]["payment_method"] | null
+          paid_at: string | null
+          payment_id: string | null
+          payment_type: Database["public"]["Enums"]["payment_type"] | null
+          status: Database["public"]["Enums"]["payment_status"] | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "booking_payments_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "booking_totals_view"
+            referencedColumns: ["booking_id"]
+          },
+          {
+            foreignKeyName: "booking_payments_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      website_fee_ready_to_issue: {
+        Row: {
+          billing_month: string | null
+          booking_count: number | null
+          eligible_net_revenue: number | null
+          fee_rate_percent: number | null
+          invoice_already_exists: boolean | null
+          late_source_count: number | null
+          period_end: string | null
+          period_start: string | null
+          proposed_invoice_total: number | null
+          source_drift_count: number | null
+          uninvoiced_source_count: number | null
+          unresolved_exception_count: number | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
-      [_ in never]: never
+      issue_website_fee_invoice: {
+        Args: {
+          p_billing_month: string
+          p_issued_by?: string
+          p_notes?: string
+        }
+        Returns: string
+      }
     }
     Enums: {
       app_role: "owner" | "admin"
@@ -1816,9 +2199,6 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
-  graphql_public: {
-    Enums: {},
-  },
   public: {
     Enums: {
       app_role: ["owner", "admin"],
@@ -1892,3 +2272,4 @@ export const Constants = {
     },
   },
 } as const
+
