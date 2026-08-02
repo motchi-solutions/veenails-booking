@@ -1,5 +1,6 @@
 import AdminSettingsPage from "@/features/admin/settings/components/AdminSettingsPage";
 import AdminEmailTestCard from "@/features/admin/settings/components/AdminEmailTestCard";
+import AdminInvoiceTestCard from "@/features/admin/settings/components/AdminInvoiceTestCard";
 import { getAdminBookingSettings } from "@/features/admin/settings/data/admin-settings";
 import { buildMetadata } from "@/lib/seo/metadata";
 import GoogleCalendarSettingsCard from "@/features/integrations/google-calendar/components/GoogleCalendarSettingsCard";
@@ -35,6 +36,7 @@ export default async function AdminSettingsRoute({
                 callbackResult={callbackResult}
             />
             <AdminEmailTestCard />
+            <AdminInvoiceTestCard />
         </div>
     );
 }

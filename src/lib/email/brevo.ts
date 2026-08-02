@@ -6,7 +6,9 @@ import type { Enums } from "@/types/supabase";
 
 export type TransactionalEmail = {
     to: { email: string | null; name?: string | null };
+    cc?: Array<{ email: string; name?: string | null }>;
     bcc?: Array<{ email: string; name?: string | null }>;
+    attachments?: Array<{ name: string; content: string }>;
     subject: string;
     html: string;
     text: string;
@@ -271,6 +273,17 @@ export async function sendTransactionalEmail(
                     recipient.email.toLowerCase() !==
                         recipientEmail.toLowerCase(),
             );
+        const cc = (input.cc ?? [])
+            .map((recipient) => ({
+                email: recipient.email.trim(),
+                name: recipient.name ?? undefined,
+            }))
+            .filter(
+                (recipient) =>
+                    recipient.email &&
+                    recipient.email.toLowerCase() !==
+                        recipientEmail.toLowerCase(),
+            );
         const response = await fetch("https://api.brevo.com/v3/smtp/email", {
             method: "POST",
             headers: {
@@ -289,7 +302,12 @@ export async function sendTransactionalEmail(
                         name: input.to.name ?? undefined,
                     },
                 ],
+                cc: cc.length > 0 ? cc : undefined,
                 bcc: bcc.length > 0 ? bcc : undefined,
+                attachment:
+                    input.attachments && input.attachments.length > 0
+                        ? input.attachments
+                        : undefined,
                 subject: input.subject,
                 htmlContent: input.html,
                 textContent: input.text,

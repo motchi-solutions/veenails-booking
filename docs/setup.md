@@ -78,6 +78,9 @@ should not be used for new configuration.
 | `BREVO_SENDER_NAME` | No | Sender display name; defaults to the studio name |
 | `ADMIN_NOTIFICATION_EMAIL` | No | Address that receives applicable admin copies |
 | `CRON_SECRET` | For reminders | Secret used to authorize the reminder endpoint |
+| `WEBSITE_FEE_WORKFLOW_SECRET` | For invoices | Server-only key used to sign monthly review links; falls back to `CRON_SECRET` only when absent |
+| `INVOICE_SUPPLIER_ADDRESS` | For invoices | Complete supplier address shown in the PDF |
+| `INVOICE_CUSTOMER_ADDRESS` | For invoices | Complete customer address shown in the PDF |
 
 Email failures do not roll back booking operations. They are recorded in
 `notification_logs` for diagnosis or retry. See the
@@ -89,6 +92,32 @@ expects:
 ```text
 Authorization: Bearer <CRON_SECRET>
 ```
+
+Vercel also invokes `/api/cron/website-fees` at 14:00 UTC on the first of each
+month. It uses the same Authorization header. Generate independent review-link
+signing material on macOS without printing it:
+
+```bash
+openssl rand -base64 48 | tr -d '\n' | pbcopy
+```
+
+Paste it into `.env.local` as `WEBSITE_FEE_WORKFLOW_SECRET` and add the same
+variable to Vercel Production. Redeploy after changing it. Rotating this value
+invalidates outstanding “run checks again” links but does not alter invoices or
+Supabase access. Never add it to Supabase or prefix it with `NEXT_PUBLIC_`.
+
+Add both invoice address variables to `.env.local` and Vercel Production. They
+remain server-only and are not embedded in browser JavaScript, logs, or the
+repository. They are intentionally rendered in invoice PDFs and therefore are
+visible to invoice recipients. The PDF wraps them cleanly inside their columns:
+
+```dotenv
+INVOICE_SUPPLIER_ADDRESS="123 Example Street, Toronto, ON A1A 1A1, Canada"
+INVOICE_CUSTOMER_ADDRESS="456 Example Avenue, Toronto, ON B2B 2B2, Canada"
+```
+
+Invoice issuance stops before creating an immutable invoice if either address
+is missing. Redeploy after changing Vercel values.
 
 ### Google Calendar
 
@@ -142,8 +171,8 @@ do not derive authorization from user-editable profile metadata.
 3. Use environment-specific site and OAuth callback URLs.
 4. Confirm Supabase Auth permits each deployed callback URL.
 5. Confirm the Brevo sender or sender domain is verified.
-6. Confirm `CRON_SECRET` is configured before enabling reminder delivery.
-7. Deploy, then follow the email and Google Calendar manual verification
+6. Confirm `CRON_SECRET` and `WEBSITE_FEE_WORKFLOW_SECRET` are configured before enabling scheduled delivery.
+7. Deploy, then follow the email, invoice, and Google Calendar manual verification
    guides in this directory.
 
 Environment-variable changes require a new deployment before server functions
