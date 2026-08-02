@@ -45,6 +45,7 @@ Contains domain behavior grouped by capability:
 - `integrations/google-calendar` — OAuth, synchronization, and event lifecycle
 - `notifications` — email templates, delivery, recipient resolution, and reminders
 - `profile` — onboarding, account details, and password/email updates
+- `website-fees` — monthly checks, invoice snapshots, PDF rendering, review links, and delivery
 
 Keep feature-specific actions, data access, validation, types, and components
 inside their feature. Move code to `src/components`, `src/lib`, or `src/types`
@@ -83,9 +84,9 @@ The application uses three Supabase client factories:
 | Admin client | `src/lib/supabase/admin.ts` | Authorized server-only operations requiring elevated access |
 
 `src/types/database.types.ts` is generated from the database. Avoid hand-editing
-it; regenerate it when the schema changes. The repository currently has no
-checked-in migration history, so schema changes must be coordinated with the
-existing Supabase project and documented until that gap is resolved.
+it; regenerate it when the schema changes. The repository contains a complete
+schema baseline under `supabase/migrations`; applied migrations are immutable
+and all later schema changes must be added as new migration files.
 
 ## Booking lifecycle
 
@@ -120,9 +121,11 @@ appointments share a managed event lifecycle so retries remain idempotent.
 
 ### Vercel Cron
 
-`vercel.json` schedules `/api/cron/appointment-reminders` once daily. The
-handler authenticates requests with `CRON_SECRET` and sends reminders for the
-next studio-calendar day.
+`vercel.json` schedules `/api/cron/appointment-reminders` once daily and
+`/api/cron/website-fees` on the first of each month. Both authenticate with
+`CRON_SECRET`. The monthly workflow checks the previous closed Toronto month,
+pauses on payment exceptions or source drift, and sends an immutable PDF only
+after every check passes.
 
 ## Code conventions
 
