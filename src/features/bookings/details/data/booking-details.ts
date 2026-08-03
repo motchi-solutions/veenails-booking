@@ -100,6 +100,30 @@ type BookingDetailsRow = BookingDetailsBaseRow & {
             | "created_at"
         >
     > | null;
+    booking_events?: Array<
+        Pick<
+            Database["public"]["Tables"]["booking_events"]["Row"],
+            "id" | "event_type" | "metadata" | "created_at"
+        >
+    > | null;
+};
+
+export type BookingDateChangeRequest = {
+    id: string;
+    requestedStartsAt: string;
+    requestedEndsAt: string | null;
+    createdAt: string;
+};
+
+export type BookingDateChangeOutcome = {
+    id: string;
+    decision: "approved" | "declined";
+    previousStartsAt: string | null;
+    previousEndsAt: string | null;
+    nextStartsAt: string | null;
+    nextEndsAt: string | null;
+    reason: string | null;
+    createdAt: string;
 };
 
 export type BookingDetailsPayment = {
@@ -156,6 +180,8 @@ export type BookingDetailsData = {
     policies: BookingDetailsPolicy[];
     cancellationRequest: BookingDetailsCancellationRequest | null;
     inspoPrompt: BookingDetailsInspoPrompt | null;
+    dateChangeRequest: BookingDateChangeRequest | null;
+    latestDateChangeOutcome: BookingDateChangeOutcome | null;
 };
 
 export type EditBookingSlot = {
@@ -232,8 +258,68 @@ const detailsSelect = `
         inspo_sent_at,
         reviewed_at,
         created_at
+    ),
+    booking_events (
+        id,
+        event_type,
+        metadata,
+        created_at
     )
 `;
+
+function getPendingDateChangeRequest(row: BookingDetailsRow): BookingDateChangeRequest | null {
+    const events = row.booking_events ?? [];
+    const resolvedIds = new Set(
+        events
+            .filter((event) =>
+                event.event_type === "date_change_request_approved" ||
+                event.event_type === "date_change_request_declined",
+            )
+            .map((event) => {
+                const metadata = event.metadata;
+                return metadata && typeof metadata === "object" && !Array.isArray(metadata)
+                    ? String(metadata.requestEventId ?? "")
+                    : "";
+            }),
+    );
+    const request = events
+        .filter(
+            (event) =>
+                event.event_type === "date_change_requested" &&
+                !resolvedIds.has(event.id),
+        )
+        .sort((a, b) => +new Date(b.created_at) - +new Date(a.created_at))[0];
+    if (!request || !request.metadata || typeof request.metadata !== "object" || Array.isArray(request.metadata)) return null;
+    const requestedStartsAt = request.metadata.requestedStartsAt;
+    if (typeof requestedStartsAt !== "string") return null;
+    return {
+        id: request.id,
+        requestedStartsAt,
+        requestedEndsAt:
+            typeof request.metadata.requestedEndsAt === "string"
+                ? request.metadata.requestedEndsAt
+                : null,
+        createdAt: request.created_at,
+    };
+}
+
+function getLatestDateChangeOutcome(row: BookingDetailsRow): BookingDateChangeOutcome | null {
+    const event = (row.booking_events ?? [])
+        .filter((item) => item.event_type === "date_change_request_approved" || item.event_type === "date_change_request_declined")
+        .sort((a, b) => +new Date(b.created_at) - +new Date(a.created_at))[0];
+    if (!event || !event.metadata || typeof event.metadata !== "object" || Array.isArray(event.metadata)) return null;
+    const approved = event.event_type === "date_change_request_approved";
+    return {
+        id: event.id,
+        decision: approved ? "approved" : "declined",
+        previousStartsAt: typeof event.metadata.previousStartsAt === "string" ? event.metadata.previousStartsAt : null,
+        previousEndsAt: typeof event.metadata.previousEndsAt === "string" ? event.metadata.previousEndsAt : null,
+        nextStartsAt: approved && typeof event.metadata.startsAt === "string" ? event.metadata.startsAt : null,
+        nextEndsAt: approved && typeof event.metadata.endsAt === "string" ? event.metadata.endsAt : null,
+        reason: typeof event.metadata.reason === "string" ? event.metadata.reason : null,
+        createdAt: event.created_at,
+    };
+}
 
 function sortByCreatedAt<T extends { created_at: string }>(rows: T[]) {
     return rows
@@ -396,6 +482,8 @@ function mapDetails(row: BookingDetailsRow): BookingDetailsData {
                   createdAt: latestInspoPrompt.created_at,
               }
             : null,
+        dateChangeRequest: getPendingDateChangeRequest(row),
+        latestDateChangeOutcome: getLatestDateChangeOutcome(row),
     };
 }
 

@@ -36,6 +36,14 @@ function QuickAction({ booking }: { booking: AdminAppointmentListItem }) {
                     Review cancellation
                 </Link>
             ) : null}
+            {booking.pendingDateChangeRequest ? (
+                <Link
+                    href={`/admin/appointments/${booking.id}#date-change-request`}
+                    className="btn-secondary inline-flex items-center justify-center"
+                >
+                    Review date change
+                </Link>
+            ) : null}
         </>
     );
 }
@@ -80,6 +88,9 @@ export default function AdminAppointmentRow({
                     />
                     {booking.isExternalClient ? (
                         <AdminStatusPill label="External client" />
+                    ) : null}
+                    {booking.pendingDateChangeRequest ? (
+                        <AdminStatusPill label="Date change requested" />
                     ) : null}
                 </div>
                 <p className="text-sm font-semibold text-foreground sm:max-w-52 sm:shrink-0 sm:text-right">

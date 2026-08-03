@@ -17,6 +17,9 @@ block recovery.
 | Appointment cancelled by studio | Yes | No | `{bookingId}:admin_cancellation` | `admin_cancellation` |
 | Cancellation request submitted | Yes | BCC when configured | `{bookingId}:cancellation_request_submitted` | `cancellation_request_submitted` |
 | Cancellation request declined | Yes | No | `{bookingId}:cancellation_rejected` | `cancellation_rejected` |
+| Date change requested | Yes | BCC when configured | `{bookingId}:date_change_request_submitted:{requestEventId}` | `date_change_request_submitted` |
+| Date change approved | Yes | No | `{bookingId}:date_change_request_approved:{requestEventId}` | `date_change_request_approved` |
+| Date change declined | Yes | No | `{bookingId}:date_change_request_declined:{requestEventId}` | `date_change_request_declined` |
 | Credit issued | Yes | No | `credit_issued:{creditId}` | `credit_issued` |
 | No-show | Yes | No | `{bookingId}:appointment_no_show` | `appointment_no_show` |
 | Appointment completed | Yes | No | `{bookingId}:appointment_completed` | `appointment_completed` |
