@@ -23,6 +23,7 @@ import AdminCreditForm from "@/features/admin/credits/components/AdminCreditForm
 import { calculateBookingLedger } from "@/features/bookings/utils/booking-ledger";
 import { normalizeBookingFeeRate } from "@/features/bookings/new-booking/utils";
 import { retryGoogleCalendarSyncAction } from "@/features/integrations/google-calendar/actions/integration";
+import AdminDateChangeRequest from "@/features/admin/appointments/components/AdminDateChangeRequest";
 
 function ActionButton({
     children,
@@ -189,7 +190,7 @@ export default function AdminAppointmentDetailsPage({
                                 <span className="capitalize text-white/70">
                                     {discountLabel}
                                 </span>
-                                <span className="font-semibold">
+                                <span className="max-w-28 text-right font-semibold">
                                     -{formatMoney(discountAmount)}
                                 </span>
                             </p>
@@ -209,10 +210,10 @@ export default function AdminAppointmentDetailsPage({
                                 <span className="text-white/70">
                                     {booking.bookingFeeMode ===
                                     "included_in_price"
-                                        ? `Internal booking fee (${bookingFeeRate}% studio absorbed)`
+                                        ? `Internal booking fee (${bookingFeeRate}%)`
                                         : `Booking fee (${bookingFeeRate}%)`}
                                 </span>
-                                <span className="font-semibold">
+                                <span className="font-semibold text-right">
                                     {booking.bookingFeeMode ===
                                     "included_in_price"
                                         ? "Studio absorbed"
@@ -259,6 +260,8 @@ export default function AdminAppointmentDetailsPage({
             </section>
 
             <AdminCancellationSummary booking={booking} />
+
+            <AdminDateChangeRequest booking={booking} />
 
             <AdminAppointmentActions booking={booking} />
 

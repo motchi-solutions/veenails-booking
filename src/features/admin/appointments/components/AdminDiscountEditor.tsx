@@ -38,8 +38,8 @@ function SummaryRow({
             <span
                 className={
                     emphasized
-                        ? "text-base font-semibold text-foreground"
-                        : "font-semibold text-foreground"
+                        ? "text-right text-base font-semibold text-foreground"
+                        : "text-right font-semibold text-foreground"
                 }
             >
                 {value}
@@ -206,7 +206,7 @@ export default function AdminDiscountEditor({
                         <SummaryRow
                             label={
                                 booking.bookingFeeMode === "included_in_price"
-                                    ? `Internal booking fee (${bookingFeeRate}% studio absorbed)`
+                                    ? `Internal booking fee (${bookingFeeRate}%)`
                                     : `Booking fee (${bookingFeeRate}%)`
                             }
                             value={

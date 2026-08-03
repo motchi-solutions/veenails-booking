@@ -34,6 +34,7 @@ import type {
 import type { Database } from "@/types/supabase";
 import { buildBookingServiceLineItems } from "@/features/bookings/utils/booking-line-items";
 import { formatStudioAppointmentDateTime } from "@/lib/utils/studio-time";
+import { appointmentStatusTemplate } from "@/features/notifications/email/templates/appointment-status-template";
 
 type DesignTierRow = Pick<
     Database["public"]["Tables"]["design_tiers"]["Row"],
@@ -447,21 +448,67 @@ export async function requestBookingDateChange(
     }
 
     const { booking } = bookingResult;
-    const { error: eventError } = await admin.from("booking_events").insert({
-        booking_id: booking.id,
-        actor_type: "client",
-        actor_user_id: user.id,
-        event_type: "date_change_requested",
-        message: "Client requested a date/time change for studio approval.",
-        metadata: {
-            currentSlotId: booking.slot_id,
-            currentStartsAt: booking.startsAt,
-            currentEndsAt: booking.endsAt,
-            requestedSlotId: requestedSlot.id,
-            requestedStartsAt: requestedSlot.starts_at,
-            requestedEndsAt: requestedSlot.ends_at,
-        },
-    });
+    const { data: recentEvents, error: pendingCheckError } = await admin
+        .from("booking_events")
+        .select("id, event_type, metadata, created_at")
+        .eq("booking_id", booking.id)
+        .in("event_type", [
+            "date_change_requested",
+            "date_change_request_approved",
+            "date_change_request_declined",
+        ])
+        .order("created_at", { ascending: false })
+        .limit(20);
+
+    if (pendingCheckError) {
+        console.error("[bookings:edit.request-date.pending]", pendingCheckError);
+        return editState({
+            error: "We couldn't check your existing request. Please try again.",
+        });
+    }
+
+    const resolvedRequestIds = new Set(
+        (recentEvents ?? [])
+            .filter((event) => event.event_type !== "date_change_requested")
+            .map((event) => {
+                const metadata = event.metadata;
+                return metadata && typeof metadata === "object" && !Array.isArray(metadata)
+                    ? String(metadata.requestEventId ?? "")
+                    : "";
+            })
+            .filter(Boolean),
+    );
+    const pendingRequest = (recentEvents ?? []).find(
+        (event) =>
+            event.event_type === "date_change_requested" &&
+            !resolvedRequestIds.has(event.id),
+    );
+
+    if (pendingRequest) {
+        return editState({
+            success: "Your date change request is already waiting for studio review.",
+        });
+    }
+
+    const { data: requestEvent, error: eventError } = await admin
+        .from("booking_events")
+        .insert({
+            booking_id: booking.id,
+            actor_type: "client",
+            actor_user_id: user.id,
+            event_type: "date_change_requested",
+            message: "Client requested a date/time change for studio approval.",
+            metadata: {
+                currentSlotId: booking.slot_id,
+                currentStartsAt: booking.startsAt,
+                currentEndsAt: booking.endsAt,
+                requestedSlotId: requestedSlot.id,
+                requestedStartsAt: requestedSlot.starts_at,
+                requestedEndsAt: requestedSlot.ends_at,
+            },
+        })
+        .select("id")
+        .single();
 
     if (eventError) {
         console.error("[bookings:edit.request-date.event]", eventError);
@@ -470,7 +517,44 @@ export async function requestBookingDateChange(
         });
     }
 
+    revalidatePath("/admin");
+    revalidatePath("/admin/appointments");
     revalidateBookingPaths(booking.booking_reference);
+
+    const { data: profileDetails } = await admin
+        .from("profiles")
+        .select("display_name, email")
+        .eq("id", user.id)
+        .maybeSingle();
+    const requestedAppointment = formatStudioAppointmentDateTime(
+        requestedSlot.starts_at,
+    );
+    const siteUrl = getAppBaseUrl();
+    const template = appointmentStatusTemplate({
+        name: profileDetails?.display_name ?? "Client",
+        reference: booking.booking_reference,
+        status: "date change requested",
+        appointment: requestedAppointment,
+        message: `Your request to move the appointment to ${requestedAppointment} was sent to the studio for review. Your current appointment stays unchanged until it is approved.`,
+        detailsUrl: siteUrl
+            ? `${siteUrl}/booking/${booking.booking_reference}`
+            : undefined,
+    });
+    const adminEmail = getEmailConfig().adminNotificationEmail;
+    await sendTransactionalEmail({
+        to: {
+            email: profileDetails?.email ?? null,
+            name: profileDetails?.display_name,
+        },
+        bcc: adminEmail
+            ? [{ email: adminEmail, name: "Vee's Nail Studio" }]
+            : undefined,
+        ...template,
+        notificationType: "date_change_request_submitted",
+        deduplicationKey: `${booking.id}:date_change_request_submitted:${requestEvent.id}`,
+        bookingId: booking.id,
+        userId: user.id,
+    });
 
     return editState({
         success: "Date change request sent. The studio will review it.",

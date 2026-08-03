@@ -14,6 +14,10 @@ export const adminAppointmentViews = {
         label: "Pending cancellations",
         description: "Cancellation requests waiting for an admin decision.",
     },
+    pending_date_changes: {
+        label: "Date changes",
+        description: "Client date and time change requests waiting for review.",
+    },
     inspo_reviews: {
         label: "Inspo to review",
         description: "Design inspiration marked as sent and ready to review.",
@@ -52,6 +56,10 @@ export function matchesAdminAppointmentView(
         return booking.latestCancellationStatus === "pending";
     }
 
+    if (view === "pending_date_changes") {
+        return booking.pendingDateChangeRequest !== null;
+    }
+
     return booking.inspoStatus === "sent";
 }
 
@@ -76,6 +84,7 @@ export function needsAdminAction(
         unresolvedDeposit ||
         readyToClose ||
         booking.latestCancellationStatus === "pending" ||
+        booking.pendingDateChangeRequest !== null ||
         booking.inspoStatus === "sent"
     );
 }

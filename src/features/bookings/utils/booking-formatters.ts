@@ -103,7 +103,12 @@ export function formatShortLineItems(
     }[],
 ) {
     const visibleItems = lineItems
-        .filter((item) => item.label && item.itemType !== "discount")
+        .filter(
+            (item) =>
+                item.label &&
+                item.itemType !== "discount" &&
+                item.itemType !== "fee",
+        )
         .map((item) =>
             item.label.replace(/\s+—\s+/g, " · ").replace(/\s+-\s+/g, " · "),
         );

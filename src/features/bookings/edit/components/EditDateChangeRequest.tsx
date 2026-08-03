@@ -30,6 +30,7 @@ export default function EditDateChangeRequest({
 }) {
     const { error, success } = useToast();
     const [slotId, setSlotId] = useState("");
+    const pendingRequest = data.dateChangeRequest;
     const [state, formAction, pending] = useActionState(
         requestBookingDateChange,
         initialState,
@@ -47,6 +48,22 @@ export default function EditDateChangeRequest({
             success(state.success, "Request sent");
         }
     }, [error, state.error, state.messageId, state.success, success]);
+
+    if (pendingRequest) {
+        return (
+            <div className="rounded-2xl border border-requested/25 bg-requested-soft p-4 sm:p-5">
+                <p className="text-sm font-semibold text-foreground">
+                    Request waiting for studio review
+                </p>
+                <p className="mt-2 text-sm leading-relaxed text-muted">
+                    Requested time: {formatBookingDateTime(
+                        pendingRequest.requestedStartsAt,
+                        pendingRequest.requestedEndsAt,
+                    )}. Your current appointment stays booked until the studio approves this change.
+                </p>
+            </div>
+        );
+    }
 
     return (
         <form action={formAction} className="space-y-4">

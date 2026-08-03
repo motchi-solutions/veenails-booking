@@ -30,9 +30,30 @@ export type AdminAppointmentListItem = {
     clientPreferredContactMethod: ClientPreferredContactMethod | null;
     isExternalClient: boolean;
     latestCancellationStatus: CancellationStatus | null;
+    pendingDateChangeRequest: AdminDateChangeRequest | null;
+    latestDateChangeOutcome: AdminDateChangeOutcome | null;
     inspoStatus: InspoStatus | null;
     serviceSummary: string;
     googleSyncState: "synced" | "pending" | "issue" | "not_connected";
+};
+
+export type AdminDateChangeRequest = {
+    id: string;
+    requestedSlotId: string;
+    requestedStartsAt: string;
+    requestedEndsAt: string | null;
+    createdAt: string;
+};
+
+export type AdminDateChangeOutcome = {
+    id: string;
+    decision: "approved" | "declined";
+    previousStartsAt: string | null;
+    previousEndsAt: string | null;
+    nextStartsAt: string | null;
+    nextEndsAt: string | null;
+    reason: string | null;
+    createdAt: string;
 };
 
 export type AdminLineItem = {
@@ -154,6 +175,19 @@ type AdminAppointmentRow = Pick<
               Pick<
                   Database["public"]["Tables"]["booking_inspo_prompts"]["Row"],
                   "id" | "status" | "created_at"
+              >
+          >
+        | null;
+    booking_events:
+        | Array<
+              Pick<
+                  Database["public"]["Tables"]["booking_events"]["Row"],
+                  | "id"
+                  | "actor_type"
+                  | "event_type"
+                  | "message"
+                  | "metadata"
+                  | "created_at"
               >
           >
         | null;
@@ -280,7 +314,8 @@ const listSelect = `
         preferred_contact_method
     ),
     cancellation_requests ( id, status, created_at ),
-    booking_inspo_prompts ( id, status, created_at )
+    booking_inspo_prompts ( id, status, created_at ),
+    booking_events ( id, event_type, metadata, created_at )
     ,booking_line_items ( label_snapshot, item_type, active, removed_at )
 `;
 
@@ -384,6 +419,59 @@ function latestByCreatedAt<T extends { created_at: string }>(rows: T[] | null | 
     );
 }
 
+function pendingDateChangeRequest(
+    events: Array<{ id: string; event_type: string; metadata: Json; created_at: string }> | null | undefined,
+): AdminDateChangeRequest | null {
+    const rows = events ?? [];
+    const resolvedIds = new Set(
+        rows
+            .filter((event) =>
+                event.event_type === "date_change_request_approved" ||
+                event.event_type === "date_change_request_declined",
+            )
+            .map((event) => {
+                const metadata = event.metadata;
+                return metadata && typeof metadata === "object" && !Array.isArray(metadata)
+                    ? String(metadata.requestEventId ?? "")
+                    : "";
+            }),
+    );
+    const request = rows
+        .filter((event) => event.event_type === "date_change_requested" && !resolvedIds.has(event.id))
+        .sort((a, b) => +new Date(b.created_at) - +new Date(a.created_at))[0];
+    if (!request || !request.metadata || typeof request.metadata !== "object" || Array.isArray(request.metadata)) return null;
+    const slotId = request.metadata.requestedSlotId;
+    const startsAt = request.metadata.requestedStartsAt;
+    if (typeof slotId !== "string" || typeof startsAt !== "string") return null;
+    return {
+        id: request.id,
+        requestedSlotId: slotId,
+        requestedStartsAt: startsAt,
+        requestedEndsAt: typeof request.metadata.requestedEndsAt === "string" ? request.metadata.requestedEndsAt : null,
+        createdAt: request.created_at,
+    };
+}
+
+function latestDateChangeOutcome(
+    events: Array<{ id: string; event_type: string; metadata: Json; created_at: string }> | null | undefined,
+): AdminDateChangeOutcome | null {
+    const event = (events ?? [])
+        .filter((row) => row.event_type === "date_change_request_approved" || row.event_type === "date_change_request_declined")
+        .sort((a, b) => +new Date(b.created_at) - +new Date(a.created_at))[0];
+    if (!event || !event.metadata || typeof event.metadata !== "object" || Array.isArray(event.metadata)) return null;
+    const approved = event.event_type === "date_change_request_approved";
+    return {
+        id: event.id,
+        decision: approved ? "approved" : "declined",
+        previousStartsAt: typeof event.metadata.previousStartsAt === "string" ? event.metadata.previousStartsAt : null,
+        previousEndsAt: typeof event.metadata.previousEndsAt === "string" ? event.metadata.previousEndsAt : null,
+        nextStartsAt: approved && typeof event.metadata.startsAt === "string" ? event.metadata.startsAt : null,
+        nextEndsAt: approved && typeof event.metadata.endsAt === "string" ? event.metadata.endsAt : null,
+        reason: typeof event.metadata.reason === "string" ? event.metadata.reason : null,
+        createdAt: event.created_at,
+    };
+}
+
 function mapListItem(row: AdminAppointmentRow): AdminAppointmentListItem {
     const client = resolveBookingRecipient(row);
 
@@ -405,6 +493,8 @@ function mapListItem(row: AdminAppointmentRow): AdminAppointmentListItem {
         clientPreferredContactMethod: client.preferredContactMethod,
         isExternalClient: row.user_id === null,
         latestCancellationStatus: latestByCreatedAt(row.cancellation_requests)?.status ?? null,
+        pendingDateChangeRequest: pendingDateChangeRequest(row.booking_events),
+        latestDateChangeOutcome: latestDateChangeOutcome(row.booking_events),
         inspoStatus: latestByCreatedAt(row.booking_inspo_prompts)?.status ?? null,
         serviceSummary: (row.booking_line_items ?? [])
             .filter((item) => item.active && !item.removed_at && item.item_type !== "discount")
