@@ -1096,11 +1096,86 @@ export async function updateAppointmentSlotAction(formData: FormData): Promise<v
     const { user } = await requireAdmin();
     const bookingId = getString(formData, "bookingId");
     const newSlotId = getString(formData, "slotId");
+    const requestEventId = getString(formData, "requestEventId");
     if (!bookingId || !newSlotId) throw new Error("Choose a new appointment time.");
 
     const admin = createAdminClient();
     const booking = await getBooking(admin, bookingId);
-    if (booking.slot_id === newSlotId) return;
+    let requestMetadata: Record<string, Json | undefined> | null = null;
+
+    if (requestEventId) {
+        const { data: request, error: requestError } = await admin
+            .from("booking_events")
+            .select("id, metadata")
+            .eq("id", requestEventId)
+            .eq("booking_id", bookingId)
+            .eq("event_type", "date_change_requested")
+            .maybeSingle();
+        if (requestError || !request) throw new Error("This date change request is no longer available.");
+        const metadata = request.metadata;
+        if (!metadata || typeof metadata !== "object" || Array.isArray(metadata) || metadata.requestedSlotId !== newSlotId) {
+            throw new Error("The requested appointment time does not match this request.");
+        }
+        requestMetadata = metadata;
+        const { data: resolution, error: resolutionError } = await admin
+            .from("booking_events")
+            .select("id")
+            .eq("booking_id", bookingId)
+            .in("event_type", ["date_change_request_approved", "date_change_request_declined"])
+            .contains("metadata", { requestEventId })
+            .limit(1)
+            .maybeSingle();
+        if (resolutionError) throw new Error("We couldn't safely verify this request. Please try again.");
+        if (resolution) throw new Error("This date change request was already reviewed.");
+    }
+
+    if (booking.slot_id === newSlotId) {
+        if (!requestEventId || !requestMetadata) return;
+
+        const { data: currentSlot, error: currentSlotError } = await admin
+            .from("availability_slots")
+            .select("id, starts_at, ends_at")
+            .eq("id", newSlotId)
+            .maybeSingle()
+            .overrideTypes<{ id: string; starts_at: string; ends_at: string | null } | null>();
+        if (currentSlotError || !currentSlot) {
+            throw new Error("The appointment is already on the requested time, but its slot could not be verified.");
+        }
+
+        await insertEvent({
+            admin,
+            bookingId,
+            adminUserId: user.id,
+            eventType: "date_change_request_approved",
+            message: "Admin approved the client's date/time change request after the appointment had already been moved manually.",
+            metadata: {
+                requestEventId,
+                previousSlotId:
+                    typeof requestMetadata.currentSlotId === "string"
+                        ? requestMetadata.currentSlotId
+                        : null,
+                previousStartsAt:
+                    typeof requestMetadata.currentStartsAt === "string"
+                        ? requestMetadata.currentStartsAt
+                        : null,
+                previousEndsAt:
+                    typeof requestMetadata.currentEndsAt === "string"
+                        ? requestMetadata.currentEndsAt
+                        : null,
+                newSlotId,
+                startsAt: currentSlot.starts_at,
+                endsAt: currentSlot.ends_at,
+                alreadyMovedManually: true,
+            },
+        });
+        await emailApprovedDateChange({
+            booking,
+            startsAt: currentSlot.starts_at,
+            requestEventId,
+        });
+        revalidateAdminBooking(bookingId, booking.booking_reference);
+        return;
+    }
 
     const { data: slot, error: slotError } = await admin.from("availability_slots").select("id, starts_at, ends_at, status").eq("id", newSlotId).eq("active", true).eq("status", "available").gte("starts_at", new Date().toISOString()).maybeSingle().overrideTypes<{ id: string; starts_at: string; ends_at: string; status: Enums<"slot_status"> } | null>();
     if (slotError || !slot) throw new Error("That appointment time is no longer available.");
@@ -1116,13 +1191,148 @@ export async function updateAppointmentSlotAction(formData: FormData): Promise<v
     }
     if (booking.slot_id) await admin.from("availability_slots").update({ status: "available" }).eq("id", booking.slot_id);
 
-    await insertEvent({ admin, bookingId, adminUserId: user.id, eventType: "admin_appointment_rescheduled", message: "Admin changed the appointment time.", metadata: { previousSlotId: booking.slot_id, previousStartsAt: booking.availability_slots?.starts_at ?? null, previousEndsAt: booking.availability_slots?.ends_at ?? null, newSlotId, startsAt: slot.starts_at, endsAt: slot.ends_at } });
+    await insertEvent({ admin, bookingId, adminUserId: user.id, eventType: requestEventId ? "date_change_request_approved" : "admin_appointment_rescheduled", message: requestEventId ? "Admin approved the client's date/time change request." : "Admin changed the appointment time.", metadata: { requestEventId: requestEventId || null, previousSlotId: booking.slot_id, previousStartsAt: booking.availability_slots?.starts_at ?? null, previousEndsAt: booking.availability_slots?.ends_at ?? null, newSlotId, startsAt: slot.starts_at, endsAt: slot.ends_at } });
     await syncBookingRescheduleToGoogleCalendar({
         bookingId,
         previousSlotId: booking.slot_id,
         newSlotId,
     });
+    if (requestEventId) await emailApprovedDateChange({ booking, startsAt: slot.starts_at, requestEventId });
     revalidateAdminBooking(bookingId);
+}
+
+async function emailApprovedDateChange({
+    booking,
+    startsAt,
+    requestEventId,
+}: {
+    booking: Awaited<ReturnType<typeof getBooking>>;
+    startsAt: string;
+    requestEventId: string;
+}) {
+    const recipient = resolveBookingRecipient(booking);
+    const appointment = formatStudioAppointmentDateTime(startsAt);
+    const siteUrl = getAppBaseUrl();
+    const template = appointmentStatusTemplate({
+        name: recipient.displayName,
+        reference: booking.booking_reference,
+        status: "date change approved",
+        appointment,
+        message: `Your date change was approved. Your appointment is now scheduled for ${appointment}.`,
+        detailsUrl: booking.user_id && siteUrl ? `${siteUrl}/booking/${booking.booking_reference}` : undefined,
+    });
+    await sendTransactionalEmail({
+        to: { email: recipient.email, name: recipient.displayName },
+        ...template,
+        notificationType: "date_change_request_approved",
+        deduplicationKey: `${booking.id}:date_change_request_approved:${requestEventId}`,
+        bookingId: booking.id,
+        userId: booking.user_id,
+    });
+}
+
+export async function declineDateChangeRequestAction(formData: FormData): Promise<void> {
+    const { user } = await requireAdmin();
+    const bookingId = getString(formData, "bookingId");
+    const requestEventId = getString(formData, "requestEventId");
+    const reason = getString(formData, "reason");
+    if (!bookingId || !requestEventId) throw new Error("Date change request not found.");
+
+    const admin = createAdminClient();
+    const booking = await getBooking(admin, bookingId);
+    const { data: request, error } = await admin
+        .from("booking_events")
+        .select("id, metadata")
+        .eq("id", requestEventId)
+        .eq("booking_id", bookingId)
+        .eq("event_type", "date_change_requested")
+        .maybeSingle();
+    if (error || !request) throw new Error("This date change request is no longer available.");
+
+    const { data: resolution, error: resolutionError } = await admin
+        .from("booking_events")
+        .select("id")
+        .eq("booking_id", bookingId)
+        .in("event_type", ["date_change_request_approved", "date_change_request_declined"])
+        .contains("metadata", { requestEventId })
+        .limit(1)
+        .maybeSingle();
+    if (resolutionError) throw new Error("We couldn't safely verify this request. Please try again.");
+    if (resolution) return;
+
+    await insertEvent({
+        admin,
+        bookingId,
+        adminUserId: user.id,
+        eventType: "date_change_request_declined",
+        message: reason
+            ? `Admin declined the date/time change request: ${reason}`
+            : "Admin declined the date/time change request.",
+        metadata: {
+            requestEventId,
+            reason: reason || null,
+            previousSlotId: booking.slot_id,
+            previousStartsAt: booking.availability_slots?.starts_at ?? null,
+            previousEndsAt: booking.availability_slots?.ends_at ?? null,
+        },
+    });
+
+    const recipient = resolveBookingRecipient(booking);
+    const appointment = booking.availability_slots?.starts_at
+        ? formatStudioAppointmentDateTime(booking.availability_slots.starts_at)
+        : "Not scheduled";
+    const siteUrl = getAppBaseUrl();
+    const template = appointmentStatusTemplate({
+        name: recipient.displayName,
+        reference: booking.booking_reference,
+        status: "date change declined",
+        appointment,
+        message: "The studio couldn't approve the requested date change. Your current appointment remains unchanged.",
+        extraDetails: reason ? [["Reason", reason]] : [],
+        detailsUrl: booking.user_id && siteUrl ? `${siteUrl}/booking/${booking.booking_reference}` : undefined,
+    });
+    await sendTransactionalEmail({
+        to: { email: recipient.email, name: recipient.displayName },
+        ...template,
+        notificationType: "date_change_request_declined",
+        deduplicationKey: `${bookingId}:date_change_request_declined:${requestEventId}`,
+        bookingId,
+        userId: booking.user_id,
+    });
+    revalidateAdminBooking(bookingId, booking.booking_reference);
+}
+
+export async function reviewDateChangeRequestAction(
+    _previousState: AdminAppointmentEditState,
+    formData: FormData,
+): Promise<AdminAppointmentEditState> {
+    const decision = getString(formData, "decision");
+
+    try {
+        if (decision === "approve") {
+            await updateAppointmentSlotAction(formData);
+            return editState({
+                success: "Date change approved. The appointment and calendar were updated.",
+            });
+        }
+
+        if (decision === "decline") {
+            await declineDateChangeRequestAction(formData);
+            return editState({
+                success: "Date change declined. The original appointment was kept.",
+            });
+        }
+
+        return editState({ error: "Choose whether to approve or decline this request." });
+    } catch (error) {
+        console.error("[admin:date-change-review]", error);
+        return editState({
+            error:
+                error instanceof Error
+                    ? error.message
+                    : "We couldn't review this date change request. Please try again.",
+        });
+    }
 }
 
 export async function updateAppointmentServicesAction(

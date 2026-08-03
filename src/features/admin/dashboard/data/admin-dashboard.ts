@@ -13,6 +13,7 @@ export type AdminDashboardData = {
         upcomingConfirmed: number;
         pendingRequests: number;
         pendingCancellations: number;
+        pendingDateChanges: number;
         pendingInspoReviews: number;
     };
     upcoming: AdminAppointmentListItem[];
@@ -79,6 +80,9 @@ export async function getAdminDashboardData(): Promise<AdminDashboardData> {
                         "pending_cancellations",
                         now,
                     ),
+            ).length,
+            pendingDateChanges: appointments.filter(
+                (booking) => booking.pendingDateChangeRequest !== null,
             ).length,
             pendingInspoReviews: appointments.filter(
                 (booking) =>

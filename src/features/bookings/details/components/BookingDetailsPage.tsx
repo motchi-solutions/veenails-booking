@@ -126,6 +126,38 @@ export default function BookingDetailsPage({
 
             <BookingCancellationSummary data={data} />
 
+            {data.latestDateChangeOutcome && !data.dateChangeRequest ? (
+                <div className="mb-2 rounded-3xl border border-dark-green/20 bg-dark-green/5 p-5 sm:p-6">
+                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-dark-green">
+                        Date change {data.latestDateChangeOutcome.decision}
+                    </p>
+                    <h2 className="mt-2 text-lg font-semibold text-foreground">
+                        {data.latestDateChangeOutcome.decision === "approved"
+                            ? "Your appointment time was updated"
+                            : "Your original appointment time was kept"}
+                    </h2>
+                    {data.latestDateChangeOutcome.decision === "approved" ? (
+                        <div className="mt-4 grid gap-3 sm:grid-cols-[1fr_auto_1fr] sm:items-center">
+                            <DateChangeTime
+                                label="Previous time"
+                                startsAt={data.latestDateChangeOutcome.previousStartsAt}
+                                endsAt={data.latestDateChangeOutcome.previousEndsAt}
+                            />
+                            <span className="hidden text-lg font-semibold text-dark-green sm:block" aria-hidden="true">→</span>
+                            <DateChangeTime
+                                label="New time"
+                                startsAt={data.latestDateChangeOutcome.nextStartsAt}
+                                endsAt={data.latestDateChangeOutcome.nextEndsAt}
+                            />
+                        </div>
+                    ) : (
+                        <p className="mt-3 text-sm leading-relaxed text-muted">
+                            {data.latestDateChangeOutcome.reason || "The studio wasn’t able to approve the requested date change."}
+                        </p>
+                    )}
+                </div>
+            ) : null}
+
             <div className="py-6">
                 <BookingDetailsHeader title="Appointment summary" />
                 {data.arrivalContact ? (
@@ -315,5 +347,16 @@ export default function BookingDetailsPage({
                 </div>
             </div>
         </section>
+    );
+}
+
+function DateChangeTime({ label, startsAt, endsAt }: { label: string; startsAt: string | null; endsAt: string | null }) {
+    return (
+        <div className="rounded-2xl bg-surface p-4">
+            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted">{label}</p>
+            <p className="mt-2 text-sm font-semibold text-foreground">
+                {startsAt ? formatBookingDateTime(startsAt, endsAt) : "Not available"}
+            </p>
+        </div>
     );
 }

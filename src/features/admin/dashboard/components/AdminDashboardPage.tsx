@@ -27,6 +27,11 @@ export default function AdminDashboardPage({
             view: "pending_cancellations",
         },
         {
+            label: "Date changes",
+            value: data.metrics.pendingDateChanges,
+            view: "pending_date_changes",
+        },
+        {
             label: "Inspo to review",
             value: data.metrics.pendingInspoReviews,
             view: "inspo_reviews",
@@ -41,7 +46,7 @@ export default function AdminDashboardPage({
                     title="Admin Overview"
                     description="A calm operating view for appointments, deposits, cancellations, and design inspo."
                 />
-                <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
                     {metrics.map((metric) => (
                         <Link
                             key={metric.view}
