@@ -24,7 +24,13 @@ type Evidence = {
     eligible_net_amount_snapshot: number | string;
 };
 
-const money = (value: number | string) => `$${Number(value).toFixed(2)} CAD`;
+const invoiceAmountFormatter = new Intl.NumberFormat("en-CA", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+});
+
+const money = (value: number | string) =>
+    `$${invoiceAmountFormatter.format(Number(value))} CAD`;
 
 export async function createWebsiteFeeInvoicePdf(
     invoice: Invoice,
