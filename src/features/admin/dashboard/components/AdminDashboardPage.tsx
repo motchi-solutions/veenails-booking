@@ -92,16 +92,22 @@ export default function AdminDashboardPage({
                     </Link>
                 </div>
             </section>
-            {data.current ? (
+            {data.today.length > 0 ? (
                 <section className="rounded-3xl border border-dark-green/20 bg-surface-2 p-5 shadow-sm sm:p-7">
                     <p className="text-xs font-semibold uppercase tracking-[0.18em] text-dark-green">
-                        Now / next
+                        Today
                     </p>
                     <h2 className="mt-2 text-xl font-semibold text-foreground">
-                        Next appointment
+                        Today&apos;s appointments
                     </h2>
-                    <div className="mt-4">
-                        <AdminAppointmentRow booking={data.current} />
+                    <div className="mt-4 space-y-3">
+                        {data.today.map((booking) => (
+                            <AdminAppointmentRow
+                                key={booking.id}
+                                booking={booking}
+                                quickAction
+                            />
+                        ))}
                     </div>
                 </section>
             ) : null}
