@@ -541,6 +541,29 @@ export async function processAdminBookingWorkflowAction(
                 });
             }
 
+            const totalCharged = getNumber(formData, "totalCharged");
+            const paymentMethod = getString(formData, "paymentMethod");
+            if (
+                decision === "completed" &&
+                (totalCharged === null ||
+                    totalCharged <= 0 ||
+                    Math.round(totalCharged * 100) !== totalCharged * 100)
+            ) {
+                return workflowState({
+                    error: "Enter the complete amount charged, with no more than two decimal places.",
+                    success: "",
+                });
+            }
+            if (
+                decision === "completed" &&
+                !["cash", "etransfer", "other"].includes(paymentMethod)
+            ) {
+                return workflowState({
+                    error: "Choose how the final balance was paid.",
+                    success: "",
+                });
+            }
+
             const settlement =
                 decision === "completed"
                     ? await completeBookingWithSettlement({
@@ -548,6 +571,11 @@ export async function processAdminBookingWorkflowAction(
                           bookingId,
                           userId: booking.user_id,
                           adminUserId: user.id,
+                          totalCharged: totalCharged as number,
+                          paymentMethod: paymentMethod as
+                              | "cash"
+                              | "etransfer"
+                              | "other",
                       })
                     : null;
             if (decision === "no_show") {
@@ -843,6 +871,8 @@ export async function updateAppointmentStatusAction(
     const bookingId = getString(formData, "bookingId");
     const nextStatus = getString(formData, "status") as Enums<"booking_status">;
     const note = getString(formData, "note");
+    const totalCharged = getNumber(formData, "totalCharged");
+    const paymentMethod = getString(formData, "paymentMethod");
     const admin = createAdminClient();
 
     if (!["completed", "no_show"].includes(nextStatus)) {
@@ -857,6 +887,12 @@ export async function updateAppointmentStatusAction(
             new Date(booking.availability_slots.starts_at) > new Date()
         ) return;
         if (nextStatus === "no_show" && !note) return;
+        if (
+            nextStatus === "completed" &&
+            (totalCharged === null ||
+                totalCharged <= 0 ||
+                !["cash", "etransfer", "other"].includes(paymentMethod))
+        ) return;
         const settlement =
             nextStatus === "completed"
                 ? await completeBookingWithSettlement({
@@ -864,6 +900,11 @@ export async function updateAppointmentStatusAction(
                       bookingId,
                       userId: booking.user_id,
                       adminUserId: user.id,
+                      totalCharged: totalCharged as number,
+                      paymentMethod: paymentMethod as
+                          | "cash"
+                          | "etransfer"
+                          | "other",
                   })
                 : null;
         if (nextStatus === "no_show") {

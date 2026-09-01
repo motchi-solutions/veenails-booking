@@ -5,6 +5,7 @@ import AdminPageHeader from "@/features/admin/components/AdminPageHeader";
 import Link from "next/link";
 import {
     adminAppointmentViews,
+    isStudioDayAppointment,
     matchesAdminAppointmentView,
     needsAdminAction,
     type AdminAppointmentView,
@@ -100,21 +101,8 @@ export default function AdminAppointmentsPage({
                 ? new Date(booking.endsAt)
                 : new Date(booking.startsAt)) < now,
         );
-    const isCurrent = (booking: AdminAppointmentListItem) => {
-        if (
-            !(
-                booking.status === "confirmed" ||
-                booking.status === "cancellation_requested"
-            ) ||
-            !booking.startsAt
-        )
-            return false;
-        const startsAt = +new Date(booking.startsAt);
-        const endsAt = booking.endsAt
-            ? +new Date(booking.endsAt)
-            : startsAt + 90 * 60_000;
-        return startsAt <= now && endsAt >= now;
-    };
+    const isToday = (booking: AdminAppointmentListItem) =>
+        isStudioDayAppointment(booking, new Date(nowIso));
     const byNewest = (
         a: AdminAppointmentListItem,
         b: AdminAppointmentListItem,
@@ -124,12 +112,14 @@ export default function AdminAppointmentsPage({
     const needsAction = appointments.filter((booking) =>
         needsAdminAction(booking, now),
     );
-    const current = appointments.filter(isCurrent);
+    const current = appointments
+        .filter(isToday)
+        .sort((a, b) => +new Date(a.startsAt!) - +new Date(b.startsAt!));
     const upcoming = appointments
         .filter(
             (booking) =>
                 UPCOMING.has(booking.status) &&
-                !isCurrent(booking) &&
+                !isToday(booking) &&
                 booking.startsAt &&
                 +new Date(booking.startsAt) > now,
         )
@@ -218,9 +208,10 @@ export default function AdminAppointmentsPage({
             ) : (
                 <>
                     <Section
-                        title="Current / now"
-                        description="The appointment in progress and amount to charge."
+                        title="Today"
+                        description="All of today's studio appointments, from opening through close."
                         bookings={current}
+                        quickAction
                     />
                     <Section
                         title="Needs action"

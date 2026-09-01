@@ -35,6 +35,9 @@ type InputFieldProps = BaseFieldProps & {
     type?: "text" | "email" | "tel" | "password" | "number";
     placeholder?: string;
     minLength?: number;
+    min?: number | string;
+    max?: number | string;
+    step?: number | string;
     inputMode?: React.HTMLAttributes<HTMLInputElement>["inputMode"];
     value?: string;
     onValueChange?: (value: string) => void;
@@ -192,6 +195,9 @@ export default function FormField(props: FormFieldProps) {
                         required={props.required}
                         placeholder={props.placeholder}
                         minLength={props.minLength}
+                        min={props.min}
+                        max={props.max}
+                        step={props.step}
                         inputMode={
                             props.inputMode ??
                             (props.type === "email"

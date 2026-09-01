@@ -1,4 +1,24 @@
 import type { AdminAppointmentListItem } from "@/features/admin/appointments/data/admin-appointments";
+import { getStudioDateKey } from "@/lib/utils/studio-time";
+
+const DAY_OF_EXCLUDED_STATUSES = new Set([
+    "completed",
+    "cancelled",
+    "rejected",
+    "expired",
+]);
+
+export function isStudioDayAppointment(
+    booking: AdminAppointmentListItem,
+    now: Date,
+) {
+    return Boolean(
+        booking.startsAt &&
+            !DAY_OF_EXCLUDED_STATUSES.has(booking.status) &&
+            getStudioDateKey(new Date(booking.startsAt)) ===
+                getStudioDateKey(now),
+    );
+}
 
 export const adminAppointmentViews = {
     upcoming_confirmed: {

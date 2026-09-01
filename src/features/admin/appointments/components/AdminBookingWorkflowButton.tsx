@@ -4,6 +4,7 @@ import { useActionState, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AnimatePresence } from "framer-motion";
 import AppSelect from "@/components/shared/form/AppSelect";
+import AdminCompletionPaymentFields from "@/features/admin/appointments/components/AdminCompletionPaymentFields";
 import { useToast } from "@/components/shared/toast/ToastProvider";
 import ModalShell from "@/components/shared/ui/ModalShell";
 import {
@@ -225,6 +226,12 @@ export default function AdminBookingWorkflowButton({
                                 <p className="rounded-2xl bg-surface-2 p-4 text-sm leading-relaxed text-muted">
                                     {selected.description}
                                 </p>
+                            ) : null}
+
+                            {decision === "completed" ? (
+                                <AdminCompletionPaymentFields
+                                    suggestedTotal={total}
+                                />
                             ) : null}
 
                             {needsReason ? (
