@@ -5,6 +5,7 @@ import {
 } from "@/features/admin/appointments/data/admin-appointments";
 import {
     matchesAdminAppointmentView,
+    isStudioDayAppointment,
     needsAdminAction,
 } from "@/features/admin/appointments/utils/admin-appointment-views";
 
@@ -18,19 +19,22 @@ export type AdminDashboardData = {
     };
     upcoming: AdminAppointmentListItem[];
     queue: AdminAppointmentListItem[];
-    current: AdminAppointmentListItem | null;
+    today: AdminAppointmentListItem[];
 };
 
 export async function getAdminDashboardData(): Promise<AdminDashboardData> {
     await requireAdmin();
 
-    const appointments = await getAdminAppointments({ status: "active" });
+    const appointments = await getAdminAppointments({ status: "all" });
     const now = Date.now();
     const upcoming = appointments
         .filter(
             (booking) =>
-                !booking.startsAt ||
-                new Date(booking.startsAt).getTime() >= now,
+                ["held", "requested", "confirmed", "cancellation_requested"].includes(
+                    booking.status,
+                ) &&
+                (!booking.startsAt ||
+                    new Date(booking.startsAt).getTime() >= now),
         )
         .sort((a, b) => {
             const aTime = a.startsAt ? new Date(a.startsAt).getTime() : 0;
@@ -48,12 +52,9 @@ export async function getAdminDashboardData(): Promise<AdminDashboardData> {
                 : Number.NEGATIVE_INFINITY;
             return aTime - bTime;
         });
-    const current = upcoming.find((booking) => {
-        if (!booking.startsAt) return false;
-        const startsAt = new Date(booking.startsAt).getTime();
-        const endsAt = booking.endsAt ? new Date(booking.endsAt).getTime() : startsAt + 90 * 60_000;
-        return startsAt <= now && endsAt >= now;
-    }) ?? upcoming.find((booking) => booking.startsAt && new Date(booking.startsAt).getTime() - now <= 90 * 60_000) ?? null;
+    const today = appointments
+        .filter((booking) => isStudioDayAppointment(booking, new Date(now)))
+        .sort((a, b) => +new Date(a.startsAt!) - +new Date(b.startsAt!));
 
     return {
         metrics: {
@@ -95,6 +96,6 @@ export async function getAdminDashboardData(): Promise<AdminDashboardData> {
         },
         upcoming: upcoming.slice(0, 6),
         queue: queue.slice(0, 8),
-        current,
+        today,
     };
 }

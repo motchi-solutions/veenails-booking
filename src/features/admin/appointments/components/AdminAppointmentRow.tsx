@@ -125,7 +125,7 @@ export default function AdminAppointmentRow({
                 {quickAction ? <QuickAction booking={booking} /> : null}
                 <Link
                     href={`/admin/appointments/${booking.id}`}
-                    className="btn-secondary inline-flex items-center justify-center gap-2"
+                    className="btn-secondary inline-flex items-center justify-center gap-2 only:sm:col-span-2"
                 >
                     View details <FiArrowRight aria-hidden="true" />
                 </Link>
