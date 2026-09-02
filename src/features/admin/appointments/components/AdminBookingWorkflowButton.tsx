@@ -288,7 +288,6 @@ export default function AdminBookingWorkflowButton({
                             {decision === "loyalty_reward" ? (
                                 <AdminLoyaltyAdjustmentFields />
                             ) : null}
-
                             {needsReason ? (
                                 <label className="block space-y-2">
                                     <span className="label-text">

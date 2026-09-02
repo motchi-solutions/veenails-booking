@@ -278,7 +278,6 @@ export default function AdminAppointmentDetailsPage({
                 openCancellation={openCancellation}
             />
 
-
             <section className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_22rem]">
                 <div className="space-y-6">
                     <div className="rounded-3xl border border-border/60 bg-surface p-5 shadow-sm sm:p-7">
