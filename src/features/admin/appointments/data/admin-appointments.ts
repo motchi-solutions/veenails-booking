@@ -18,6 +18,7 @@ export type AdminAppointmentListItem = {
     bookingReference: string;
     status: BookingStatus;
     depositStatus: DepositStatus;
+    depositAmount: number;
     startsAt: string | null;
     endsAt: string | null;
     estimatedTotal: number;
@@ -135,6 +136,7 @@ type AdminAppointmentRow = Pick<
     | "booking_reference"
     | "status"
     | "deposit_status"
+    | "deposit_amount"
     | "estimated_total"
     | "final_total"
     | "created_at"
@@ -293,6 +295,7 @@ const listSelect = `
     booking_reference,
     status,
     deposit_status,
+    deposit_amount,
     estimated_total,
     final_total,
     created_at,
@@ -481,6 +484,7 @@ function mapListItem(row: AdminAppointmentRow): AdminAppointmentListItem {
         bookingReference: row.booking_reference,
         status: row.status,
         depositStatus: row.deposit_status,
+        depositAmount: Number(row.deposit_amount ?? 0),
         startsAt: row.availability_slots?.starts_at ?? null,
         endsAt: row.availability_slots?.ends_at ?? null,
         estimatedTotal: Number(row.estimated_total ?? 0),
@@ -650,7 +654,6 @@ export async function getAdminAppointments({
 
     const normalizedSearch = search.trim().toLowerCase();
     const rows = (data ?? []).map(mapListItem);
-
     if (!normalizedSearch) {
         return rows;
     }

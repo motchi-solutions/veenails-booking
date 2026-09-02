@@ -11,6 +11,11 @@ import {
     processAdminBookingWorkflowAction,
     type AdminBookingWorkflowState,
 } from "@/features/admin/appointments/actions/admin-appointments";
+import {
+    applyLoyaltyAdjustmentAction,
+    type LoyaltyActionState,
+} from "@/features/admin/loyalty/actions/admin-loyalty";
+import AdminLoyaltyAdjustmentFields from "@/features/admin/appointments/components/AdminLoyaltyAdjustmentFields";
 import type { AdminAppointmentListItem } from "@/features/admin/appointments/data/admin-appointments";
 import {
     formatBookingDateTime,
@@ -22,7 +27,9 @@ type WorkflowDecision =
     | "reject_credit"
     | "reject_no_deposit"
     | "completed"
-    | "no_show";
+    | "no_show"
+    | "cancelled"
+    | "loyalty_reward";
 
 type WorkflowOption = {
     value: WorkflowDecision;
@@ -31,6 +38,11 @@ type WorkflowOption = {
 };
 
 const initialState: AdminBookingWorkflowState = {
+    error: "",
+    success: "",
+    messageId: "",
+};
+const initialLoyaltyState: LoyaltyActionState = {
     error: "",
     success: "",
     messageId: "",
@@ -56,7 +68,6 @@ function getWorkflowOptions(
             description:
                 "Marks the deposit received and confirms the appointment in one step.",
         });
-
         if (booking.userId) {
             options.push({
                 value: "reject_credit",
@@ -107,6 +118,18 @@ function getWorkflowOptions(
                     "Closes the appointment as a no-show and records a note.",
             },
         );
+        options.push({
+            value: "cancelled",
+            label: "Cancel appointment",
+            description:
+                "Continue to the full cancellation flow to record the reason, deposit outcome, refund, and payment status.",
+        });
+        options.push({
+            value: "loyalty_reward",
+            label: "Apply loyalty courtesy",
+            description:
+                "Finish with a free appointment or percentage discount. Eligibility is decided by the admin and is not tracked by the website.",
+        });
     }
 
     return options;
@@ -145,6 +168,10 @@ export default function AdminBookingWorkflowButton({
         processAdminBookingWorkflowAction,
         initialState,
     );
+    const [loyaltyState, loyaltyAction, loyaltyPending] = useActionState(
+        applyLoyaltyAdjustmentAction,
+        initialLoyaltyState,
+    );
     const selected = options.find((option) => option.value === decision);
     const needsReason = decision === "reject_credit" || decision === "no_show";
     const total =
@@ -163,7 +190,24 @@ export default function AdminBookingWorkflowButton({
         }
     }, [error, router, state.error, state.messageId, state.success, success]);
 
+    useEffect(() => {
+        if (!loyaltyState.messageId) return;
+        if (loyaltyState.error) {
+            error(loyaltyState.error, "Loyalty reward not applied");
+            return;
+        }
+        if (loyaltyState.success) {
+            success(loyaltyState.success, "Loyalty reward applied");
+            window.setTimeout(() => setOpen(false), 0);
+            router.refresh();
+        }
+    }, [error, loyaltyState, router, success]);
+
     if (options.length === 0) return null;
+
+    const continueToCancellation = () => {
+        router.push(`/admin/appointments/${booking.id}?cancel=1`);
+    };
 
     return (
         <>
@@ -182,7 +226,14 @@ export default function AdminBookingWorkflowButton({
                         description={`#${booking.bookingReference} · ${booking.clientDisplayName}`}
                         onClose={() => setOpen(false)}
                     >
-                        <form action={formAction} className="space-y-4">
+                        <form
+                            action={
+                                decision === "loyalty_reward"
+                                    ? loyaltyAction
+                                    : formAction
+                            }
+                            className="space-y-4"
+                        >
                             <input
                                 type="hidden"
                                 name="bookingId"
@@ -234,6 +285,10 @@ export default function AdminBookingWorkflowButton({
                                 />
                             ) : null}
 
+                            {decision === "loyalty_reward" ? (
+                                <AdminLoyaltyAdjustmentFields />
+                            ) : null}
+
                             {needsReason ? (
                                 <label className="block space-y-2">
                                     <span className="label-text">
@@ -267,11 +322,22 @@ export default function AdminBookingWorkflowButton({
                                     Go back
                                 </button>
                                 <button
-                                    type="submit"
+                                    type={decision === "cancelled" ? "button" : "submit"}
                                     className="btn-primary"
-                                    disabled={pending || !decision}
+                                    disabled={pending || loyaltyPending || !decision}
+                                    onClick={
+                                        decision === "cancelled"
+                                            ? continueToCancellation
+                                            : undefined
+                                    }
                                 >
-                                    {pending ? "Saving..." : "Apply update"}
+                                    {pending || loyaltyPending
+                                        ? "Saving..."
+                                        : decision === "cancelled"
+                                          ? "Next"
+                                          : decision === "loyalty_reward"
+                                            ? "Apply loyalty reward"
+                                          : "Apply update"}
                                 </button>
                             </div>
                         </form>

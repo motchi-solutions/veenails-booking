@@ -10,9 +10,11 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import type { Enums } from "@/types/supabase";
 import { syncBookingToGoogleCalendar } from "@/features/integrations/google-calendar/services/sync";
 import { formatStudioAppointmentDateTime } from "@/lib/utils/studio-time";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
 export type AdminCancellationState = { error: string; success: string; messageId: string };
-type Outcome = "credit" | "no_refund";
+type Outcome = "refund" | "credit" | "no_refund";
+type RefundStatus = "pending" | "completed";
 
 function result(input: Omit<AdminCancellationState, "messageId">): AdminCancellationState {
     return { ...input, messageId: `${Date.now()}-${Math.random().toString(36).slice(2)}` };
@@ -33,12 +35,21 @@ export async function cancelAppointmentWithOutcomeAction(
     const reason = value(formData, "reason");
     const internalNote = value(formData, "internalNote");
     const requestedOutcome = value(formData, "outcome") as Outcome;
+    const requestedRefundStatus = value(formData, "refundStatus") as RefundStatus;
+    const paymentStatusInput = value(formData, "paymentStatus");
 
     if (!bookingId || reason.length < 4) return result({ error: "Add a cancellation reason.", success: "" });
-    if (!(["credit", "no_refund"] as const).includes(requestedOutcome)) return result({ error: "Choose what should happen to the deposit.", success: "" });
+    if (!(["refund", "credit", "no_refund"] as const).includes(requestedOutcome)) return result({ error: "Choose what should happen to the deposit.", success: "" });
+    if (requestedOutcome === "refund" && !(["pending", "completed"] as const).includes(requestedRefundStatus)) return result({ error: "Choose the deposit refund status.", success: "" });
+    const finalPaymentStatus = paymentStatusInput === "not_applicable"
+        ? null
+        : (["pending", "received", "refunded", "failed"] as const).includes(paymentStatusInput as "pending" | "received" | "refunded" | "failed")
+          ? paymentStatusInput as "pending" | "received" | "refunded" | "failed"
+          : undefined;
+    if (finalPaymentStatus === undefined) return result({ error: "Choose the final payment status.", success: "" });
 
-    const admin = createAdminClient();
-    const { data: booking, error: bookingError } = await admin
+    const admin = createAdminClient() as unknown as SupabaseClient;
+    const { data: rawBooking, error: bookingError } = await admin
         .from("bookings")
         .select("id, booking_reference, user_id, status, deposit_status, deposit_amount, slot_id, client_display_name, client_email, client_instagram_handle, client_preferred_contact_method, profiles:user_id(display_name, email, instagram_handle, preferred_contact_method), availability_slots:slot_id(starts_at, ends_at)")
         .eq("id", bookingId)
@@ -48,6 +59,12 @@ export async function cancelAppointmentWithOutcomeAction(
             profiles: { display_name: string; email: string; instagram_handle: string | null; preferred_contact_method: string | null } | null;
             availability_slots: { starts_at: string; ends_at: string | null } | null;
         } | null>();
+
+    const booking = rawBooking as unknown as {
+        id: string; booking_reference: string; user_id: string | null; status: Enums<"booking_status">; deposit_status: Enums<"deposit_status">; deposit_amount: number; slot_id: string | null; client_display_name: string | null; client_email: string | null; client_instagram_handle: string | null; client_preferred_contact_method: string | null;
+        profiles: { display_name: string; email: string; instagram_handle: string | null; preferred_contact_method: string | null } | null;
+        availability_slots: { starts_at: string; ends_at: string | null } | null;
+    } | null;
 
     if (bookingError) console.error("[admin:cancellation:booking]", bookingError);
     if (!booking || !["held", "requested", "confirmed", "cancellation_requested"].includes(booking.status)) return result({ error: "This appointment can no longer be cancelled.", success: "" });
@@ -72,10 +89,34 @@ export async function cancelAppointmentWithOutcomeAction(
         if (outcome === "credit" && !booking.user_id) return result({ error: "Account credit can only be issued to an app customer.", success: "" });
         if (outcome === "credit" && depositAmount <= 0) return result({ error: "A positive received deposit amount is required for that outcome.", success: "" });
         let issuedCreditId: string | null = null;
+        let refundPaymentId: string | null = null;
         if (payment) {
-            const paymentStatus: Enums<"payment_status"> = outcome === "credit" ? "credited" : "forfeited";
+            const paymentStatus: Enums<"payment_status"> = outcome === "credit"
+                ? "credited"
+                : outcome === "refund"
+                  ? "received"
+                  : outcome === "no_refund"
+                    ? "forfeited"
+                    : "received";
             const { data: changedPayment, error } = await admin.from("booking_payments").update({ status: paymentStatus, notes: internalNote || reason, marked_by: user.id }).eq("id", payment.id).eq("status", "received").select("id").maybeSingle();
             if (error || !changedPayment) return result({ error: "The deposit was already processed. Refresh before trying again.", success: "" });
+        }
+
+        if (outcome === "refund") {
+            const refundStatus: Enums<"payment_status"> = requestedRefundStatus === "completed" ? "refunded" : "pending";
+            const { data: refundPayment, error } = await admin.from("booking_payments").insert({
+                booking_id: bookingId,
+                user_id: booking.user_id,
+                payment_type: "refund",
+                method: "etransfer",
+                amount: depositAmount,
+                status: refundStatus,
+                paid_at: requestedRefundStatus === "completed" ? now : null,
+                marked_by: user.id,
+                notes: `Cancellation deposit refund · ${reason}`,
+            }).select("id").single();
+            if (error || !refundPayment) throw error ?? new Error("Refund record failed.");
+            refundPaymentId = refundPayment.id;
         }
 
         if (outcome === "credit") {
@@ -102,10 +143,19 @@ export async function cancelAppointmentWithOutcomeAction(
             issuedCreditId = issuedCredit.id;
         }
 
-        const depositStatus: Enums<"deposit_status"> = !depositReceived ? booking.deposit_status : outcome === "credit" ? "credited" : "forfeited";
+        const depositStatus: Enums<"deposit_status"> = !depositReceived
+            ? booking.deposit_status
+            : outcome === "credit"
+              ? "credited"
+              : outcome === "refund" && requestedRefundStatus === "completed"
+                ? "refunded"
+                : outcome === "no_refund"
+                  ? "forfeited"
+                  : "received";
         const { data: cancelled, error: cancelError } = await admin.from("bookings").update({ status: "cancelled", cancelled_at: now, deposit_status: depositStatus }).eq("id", bookingId).in("status", ["held", "requested", "confirmed", "cancellation_requested"]).select("id").maybeSingle();
         if (cancelError || !cancelled) {
             if (issuedCreditId) await admin.from("user_credits").delete().eq("id", issuedCreditId);
+            if (refundPaymentId) await admin.from("booking_payments").delete().eq("id", refundPaymentId);
             if (payment) await admin.from("booking_payments").update({ status: "received" }).eq("id", payment.id).eq("status", outcome === "credit" ? "credited" : "forfeited");
             throw cancelError ?? new Error("Booking status changed while cancelling.");
         }
@@ -115,13 +165,42 @@ export async function cancelAppointmentWithOutcomeAction(
             if (error) throw error;
         }
 
+
+        const { error: cancellationRecordError } = await admin
+            .from("booking_cancellations")
+            .insert({
+                booking_id: bookingId,
+                reason,
+                internal_note: internalNote || null,
+                deposit_outcome: !depositReceived
+                    ? "not_received"
+                    : outcome === "credit"
+                      ? "account_credit"
+                      : outcome === "refund"
+                        ? "refund"
+                        : "forfeited",
+                refund_status: outcome === "refund" ? requestedRefundStatus : "not_required",
+                final_payment_status: finalPaymentStatus,
+                deposit_amount: depositAmount,
+                refund_payment_id: refundPaymentId,
+                cancelled_by: user.id,
+                cancelled_at: now,
+            });
+        if (cancellationRecordError) throw cancellationRecordError;
+
         const futureSlot = Boolean(booking.availability_slots?.starts_at && new Date(booking.availability_slots.starts_at) > new Date());
         if (futureSlot && booking.slot_id) {
             const { error } = await admin.from("availability_slots").update({ status: "available", active: true }).eq("id", booking.slot_id);
             if (error) throw error;
         }
 
-        const outcomeLabel = outcome === "credit" ? "Deposit converted to studio credit" : depositReceived ? "No refund / deposit forfeited" : "No deposit received";
+        const outcomeLabel = outcome === "credit"
+            ? "Deposit converted to studio credit"
+            : outcome === "refund"
+              ? `Deposit refund ${requestedRefundStatus}`
+              : depositReceived
+                ? "No refund / deposit forfeited"
+                : "No deposit received";
         const { error: eventError } = await admin.from("booking_events").insert([
             { booking_id: bookingId, actor_type: "admin", actor_user_id: user.id, event_type: "admin_booking_cancelled", message: `Admin cancelled the appointment: ${reason}`, metadata: { previousStatus: booking.status, newStatus: "cancelled", reason, internalNote: internalNote || null, outcome, depositAmount } },
             { booking_id: bookingId, actor_type: "admin" as const, actor_user_id: user.id, event_type: "cancellation_deposit_decision", message: outcomeLabel, metadata: { outcome, depositAmount, previousDepositStatus: booking.deposit_status, newDepositStatus: depositStatus } },
