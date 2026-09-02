@@ -27,7 +27,6 @@ export function getAdminAppointmentActionRules(
         ? new Date(booking.startsAt).getTime()
         : null;
     const currentOrPast = startsAt !== null && startsAt <= now;
-    const future = startsAt === null || startsAt > now;
     const active = ACTIVE_STATUSES.has(booking.status);
     const terminal = !active;
     const pendingCancellation =
@@ -48,10 +47,9 @@ export function getAdminAppointmentActionRules(
         canReject:
             (booking.status === "requested" || booking.status === "held"),
         canCancel:
-            future &&
-            (booking.status === "requested" ||
-                booking.status === "held" ||
-                booking.status === "confirmed"),
+            booking.status === "requested" ||
+            booking.status === "held" ||
+            booking.status === "confirmed",
         canReviewCancellation: pendingCancellation,
         canReviewInspo: booking.inspoPrompt?.status === "sent",
         terminal,

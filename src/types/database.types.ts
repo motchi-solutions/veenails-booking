@@ -159,6 +159,96 @@ export type Database = {
           },
         ]
       }
+      booking_cancellations: {
+        Row: {
+          booking_id: string
+          cancelled_at: string
+          cancelled_by: string | null
+          created_at: string
+          deposit_amount: number
+          deposit_outcome: Database["public"]["Enums"]["cancellation_deposit_outcome"]
+          final_payment_status:
+            | Database["public"]["Enums"]["payment_status"]
+            | null
+          id: string
+          internal_note: string | null
+          reason: string
+          refund_payment_id: string | null
+          refund_status: Database["public"]["Enums"]["refund_status"]
+          updated_at: string
+        }
+        Insert: {
+          booking_id: string
+          cancelled_at?: string
+          cancelled_by?: string | null
+          created_at?: string
+          deposit_amount?: number
+          deposit_outcome: Database["public"]["Enums"]["cancellation_deposit_outcome"]
+          final_payment_status?:
+            | Database["public"]["Enums"]["payment_status"]
+            | null
+          id?: string
+          internal_note?: string | null
+          reason: string
+          refund_payment_id?: string | null
+          refund_status?: Database["public"]["Enums"]["refund_status"]
+          updated_at?: string
+        }
+        Update: {
+          booking_id?: string
+          cancelled_at?: string
+          cancelled_by?: string | null
+          created_at?: string
+          deposit_amount?: number
+          deposit_outcome?: Database["public"]["Enums"]["cancellation_deposit_outcome"]
+          final_payment_status?:
+            | Database["public"]["Enums"]["payment_status"]
+            | null
+          id?: string
+          internal_note?: string | null
+          reason?: string
+          refund_payment_id?: string | null
+          refund_status?: Database["public"]["Enums"]["refund_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "booking_cancellations_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: true
+            referencedRelation: "booking_totals_view"
+            referencedColumns: ["booking_id"]
+          },
+          {
+            foreignKeyName: "booking_cancellations_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: true
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "booking_cancellations_refund_payment_id_fkey"
+            columns: ["refund_payment_id"]
+            isOneToOne: false
+            referencedRelation: "booking_payments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "booking_cancellations_refund_payment_id_fkey"
+            columns: ["refund_payment_id"]
+            isOneToOne: false
+            referencedRelation: "website_fee_payment_details"
+            referencedColumns: ["payment_id"]
+          },
+          {
+            foreignKeyName: "booking_cancellations_refund_payment_id_fkey"
+            columns: ["refund_payment_id"]
+            isOneToOne: false
+            referencedRelation: "website_fee_payment_exceptions"
+            referencedColumns: ["payment_id"]
+          },
+        ]
+      }
       booking_events: {
         Row: {
           actor_type: Database["public"]["Enums"]["booking_actor_type"]
@@ -610,6 +700,7 @@ export type Database = {
           google_calendar_synced_at: string | null
           hold_expires_at: string | null
           id: string
+          is_loyalty_reward: boolean
           slot_id: string | null
           status: Database["public"]["Enums"]["booking_status"]
           subtotal_amount: number
@@ -641,6 +732,7 @@ export type Database = {
           google_calendar_synced_at?: string | null
           hold_expires_at?: string | null
           id?: string
+          is_loyalty_reward?: boolean
           slot_id?: string | null
           status?: Database["public"]["Enums"]["booking_status"]
           subtotal_amount?: number
@@ -672,6 +764,7 @@ export type Database = {
           google_calendar_synced_at?: string | null
           hold_expires_at?: string | null
           id?: string
+          is_loyalty_reward?: boolean
           slot_id?: string | null
           status?: Database["public"]["Enums"]["booking_status"]
           subtotal_amount?: number
@@ -1997,6 +2090,20 @@ export type Database = {
       }
     }
     Functions: {
+      complete_booking_with_payment: {
+        Args: {
+          p_booking_id: string
+          p_marked_by: string
+          p_payment_method: Database["public"]["Enums"]["payment_method"]
+          p_total_charged: number
+        }
+        Returns: {
+          appointment_total: number
+          completed_at: string
+          final_payment_amount: number
+          prior_applied: number
+        }[]
+      }
       issue_website_fee_invoice: {
         Args: {
           p_billing_month: string
@@ -2028,6 +2135,11 @@ export type Database = {
         | "completed"
         | "no_show"
         | "expired"
+      cancellation_deposit_outcome:
+        | "not_received"
+        | "refund"
+        | "account_credit"
+        | "forfeited"
       cancellation_request_status:
         | "pending"
         | "approved"
@@ -2064,6 +2176,7 @@ export type Database = {
         | "forfeit"
       preferred_contact_method: "email" | "phone" | "instagram"
       refund_method: "no_refund" | "refund_etransfer" | "account_credit"
+      refund_status: "not_required" | "pending" | "completed" | "failed"
       slot_status:
         | "available"
         | "blocked"
@@ -2089,12 +2202,12 @@ export type Tables<
   DefaultSchemaTableNameOrOptions extends
     | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
         DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -2118,11 +2231,11 @@ export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -2143,11 +2256,11 @@ export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -2168,11 +2281,11 @@ export type Enums<
   DefaultSchemaEnumNameOrOptions extends
     | keyof DefaultSchema["Enums"]
     | { schema: keyof DatabaseWithoutInternals },
-  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+  EnumName extends (DefaultSchemaEnumNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaEnumNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -2185,11 +2298,11 @@ export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
     | keyof DefaultSchema["CompositeTypes"]
     | { schema: keyof DatabaseWithoutInternals },
-  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+  CompositeTypeName extends (PublicCompositeTypeNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-    : never = never,
+    : never) = never,
 > = PublicCompositeTypeNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -2223,6 +2336,12 @@ export const Constants = {
         "completed",
         "no_show",
         "expired",
+      ],
+      cancellation_deposit_outcome: [
+        "not_received",
+        "refund",
+        "account_credit",
+        "forfeited",
       ],
       cancellation_request_status: [
         "pending",
@@ -2258,6 +2377,7 @@ export const Constants = {
       payment_type: ["deposit", "final_payment", "refund", "credit", "forfeit"],
       preferred_contact_method: ["email", "phone", "instagram"],
       refund_method: ["no_refund", "refund_etransfer", "account_credit"],
+      refund_status: ["not_required", "pending", "completed", "failed"],
       slot_status: [
         "available",
         "blocked",
@@ -2272,4 +2392,3 @@ export const Constants = {
     },
   },
 } as const
-

@@ -24,6 +24,8 @@ import { calculateBookingLedger } from "@/features/bookings/utils/booking-ledger
 import { normalizeBookingFeeRate } from "@/features/bookings/new-booking/utils";
 import { retryGoogleCalendarSyncAction } from "@/features/integrations/google-calendar/actions/integration";
 import AdminDateChangeRequest from "@/features/admin/appointments/components/AdminDateChangeRequest";
+import AdminCancellationOutcomeCard from "@/features/admin/appointments/components/AdminCancellationOutcomeCard";
+import type { AdminCancellationOutcome } from "@/features/admin/appointments/data/admin-cancellation-outcome";
 
 function ActionButton({
     children,
@@ -48,8 +50,12 @@ function HiddenBookingId({ id }: { id: string }) {
 
 export default function AdminAppointmentDetailsPage({
     booking,
+    cancellationOutcome,
+    openCancellation,
 }: {
     booking: AdminAppointmentDetails;
+    cancellationOutcome: AdminCancellationOutcome | null;
+    openCancellation: boolean;
 }) {
     const instagramOnly =
         !booking.clientEmail && Boolean(booking.clientInstagramHandle);
@@ -261,9 +267,16 @@ export default function AdminAppointmentDetailsPage({
 
             <AdminCancellationSummary booking={booking} />
 
+            {cancellationOutcome ? (
+                <AdminCancellationOutcomeCard outcome={cancellationOutcome} />
+            ) : null}
+
             <AdminDateChangeRequest booking={booking} />
 
-            <AdminAppointmentActions booking={booking} />
+            <AdminAppointmentActions
+                booking={booking}
+                openCancellation={openCancellation}
+            />
 
             <section className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_22rem]">
                 <div className="space-y-6">
