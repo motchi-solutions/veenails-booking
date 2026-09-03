@@ -5,6 +5,7 @@ import AppSelect from "@/components/shared/form/AppSelect";
 import ModalShell from "@/components/shared/ui/ModalShell";
 import { useToast } from "@/components/shared/toast/ToastProvider";
 import { requestBookingCancellation } from "@/features/bookings/actions/bookings";
+import DepositPolicyNotice from "@/features/bookings/components/DepositPolicyNotice";
 import {
     formatBookingDateTime,
     formatBookingReference,
@@ -61,6 +62,8 @@ export default function CancellationRequestModal({
             <form action={formAction} className="space-y-4">
                 <input type="hidden" name="bookingId" value={booking.id} />
 
+                <DepositPolicyNotice variant="cancellation" />
+
                 <label className="block">
                     <span className="text-sm font-semibold text-foreground">
                         Reason
@@ -74,18 +77,22 @@ export default function CancellationRequestModal({
                 </label>
 
                 <AppSelect
-                    label="Preferred cancellation outcome"
+                    label="Cancellation request preference"
                     name="requestedRefundMethod"
                     defaultValue="account_credit"
                     options={[
-                        { value: "account_credit", label: "Convert deposit to account credit" },
+                        {
+                            value: "account_credit",
+                            label: "Request account credit review (not a refund)",
+                        },
                         { value: "no_refund", label: "No refund needed" },
                     ]}
                 />
 
                 <p className="rounded-2xl bg-pink-main/10 px-4 py-3 text-sm leading-relaxed text-muted">
-                    Submitting this sends your request for review. The studio
-                    may follow up before confirming the cancellation outcome.
+                    Deposits are non-refundable. Submitting this sends your
+                    request for review, and the studio will try to accommodate
+                    where possible, but a deposit refund is unlikely.
                 </p>
 
                 <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">

@@ -5,6 +5,7 @@ import { FiXCircle } from "react-icons/fi";
 
 import StepSectionCard from "@/components/shared/ui/StepSectionCard";
 import CancellationRequestModal from "@/features/bookings/components/CancellationRequestModal";
+import DepositPolicyNotice from "@/features/bookings/components/DepositPolicyNotice";
 import type { BookingDetailsData } from "@/features/bookings/details/data/booking-details";
 import { canRequestCancellation } from "@/features/bookings/utils/booking-status";
 
@@ -78,6 +79,9 @@ export default function BookingCancellationCard({
                         Need to cancel this appointment? Send a request and the
                         studio will review it.
                     </p>
+                    <div className="mt-4">
+                        <DepositPolicyNotice variant="cancellation" />
+                    </div>
                     <button
                         type="button"
                         onClick={() => setIsCancellationOpen(true)}
