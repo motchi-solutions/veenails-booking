@@ -22,7 +22,8 @@ type WorkflowDecision =
     | "reject_credit"
     | "reject_no_deposit"
     | "completed"
-    | "no_show";
+    | "no_show"
+    | "cancelled";
 
 type WorkflowOption = {
     value: WorkflowDecision;
@@ -56,7 +57,6 @@ function getWorkflowOptions(
             description:
                 "Marks the deposit received and confirms the appointment in one step.",
         });
-
         if (booking.userId) {
             options.push({
                 value: "reject_credit",
@@ -107,6 +107,12 @@ function getWorkflowOptions(
                     "Closes the appointment as a no-show and records a note.",
             },
         );
+        options.push({
+            value: "cancelled",
+            label: "Cancel appointment",
+            description:
+                "Continue to the full cancellation flow to record the reason, deposit outcome, refund, and payment status.",
+        });
     }
 
     return options;
@@ -163,7 +169,12 @@ export default function AdminBookingWorkflowButton({
         }
     }, [error, router, state.error, state.messageId, state.success, success]);
 
+
     if (options.length === 0) return null;
+
+    const continueToCancellation = () => {
+        router.push(`/admin/appointments/${booking.id}?cancel=1`);
+    };
 
     return (
         <>
@@ -182,7 +193,10 @@ export default function AdminBookingWorkflowButton({
                         description={`#${booking.bookingReference} · ${booking.clientDisplayName}`}
                         onClose={() => setOpen(false)}
                     >
-                        <form action={formAction} className="space-y-4">
+                        <form
+                            action={formAction}
+                            className="space-y-4"
+                        >
                             <input
                                 type="hidden"
                                 name="bookingId"
@@ -267,11 +281,20 @@ export default function AdminBookingWorkflowButton({
                                     Go back
                                 </button>
                                 <button
-                                    type="submit"
+                                    type={decision === "cancelled" ? "button" : "submit"}
                                     className="btn-primary"
                                     disabled={pending || !decision}
+                                    onClick={
+                                        decision === "cancelled"
+                                            ? continueToCancellation
+                                            : undefined
+                                    }
                                 >
-                                    {pending ? "Saving..." : "Apply update"}
+                                    {pending
+                                        ? "Saving..."
+                                        : decision === "cancelled"
+                                          ? "Next"
+                                          : "Apply update"}
                                 </button>
                             </div>
                         </form>

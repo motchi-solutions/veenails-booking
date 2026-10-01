@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect } from "react";
+import { useActionState, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import AppSelect from "@/components/shared/form/AppSelect";
 import ModalShell from "@/components/shared/ui/ModalShell";
@@ -13,7 +13,10 @@ import {
     reviewCancellationAction,
     type AdminCancellationReviewState,
 } from "@/features/admin/appointments/actions/admin-appointments";
-import type { AdminAppointmentDetails } from "@/features/admin/appointments/data/admin-appointments";
+import type {
+    AdminAppointmentDetails,
+    AdminAppointmentListItem,
+} from "@/features/admin/appointments/data/admin-appointments";
 import {
     formatInstagramHandle,
     formatMoney,
@@ -35,7 +38,7 @@ export default function AdminCancellationModal({
     booking,
     onClose,
 }: {
-    booking: AdminAppointmentDetails;
+    booking: AdminAppointmentDetails | AdminAppointmentListItem;
     onClose: () => void;
 }) {
     const router = useRouter();
@@ -48,12 +51,14 @@ export default function AdminCancellationModal({
         reviewCancellationAction,
         initialReview,
     );
+    const cancellationRequest =
+        "cancellationRequest" in booking ? booking.cancellationRequest : null;
     const pendingRequest =
-        booking.cancellationRequest?.status === "pending"
-            ? booking.cancellationRequest
+        cancellationRequest?.status === "pending"
+            ? cancellationRequest
             : null;
     const depositReceived = booking.depositStatus === "received";
-    const preference = booking.cancellationRequest?.requestedRefundMethod;
+    const preference = cancellationRequest?.requestedRefundMethod;
     const canIssueCredit = Boolean(booking.userId);
     const defaultOutcome =
         preference === "account_credit" && canIssueCredit
@@ -61,6 +66,7 @@ export default function AdminCancellationModal({
             : preference === "no_refund"
               ? "no_refund"
               : "";
+    const [outcome, setOutcome] = useState(defaultOutcome);
 
     useEffect(() => {
         if (!state.messageId) return;
@@ -100,6 +106,7 @@ export default function AdminCancellationModal({
             }
             description={`#${booking.bookingReference} · ${booking.clientDisplayName}`}
             onClose={onClose}
+            size="wide"
         >
             {pendingRequest ? (
                 <div className="mb-4 rounded-2xl border border-border/60 bg-background p-4">
@@ -118,8 +125,8 @@ export default function AdminCancellationModal({
                     type="hidden"
                     name="requestId"
                     value={
-                        booking.cancellationRequest?.status === "pending"
-                            ? booking.cancellationRequest.id
+                        cancellationRequest?.status === "pending"
+                            ? cancellationRequest.id
                             : ""
                     }
                 />
@@ -185,7 +192,8 @@ export default function AdminCancellationModal({
                         <AppSelect
                             label="Deposit outcome"
                             name="outcome"
-                            defaultValue={defaultOutcome}
+                            value={outcome}
+                            onChange={setOutcome}
                             placeholder="Choose deposit outcome"
                             required
                             options={[
@@ -197,9 +205,24 @@ export default function AdminCancellationModal({
                                           },
                                       ]
                                     : []),
+                                { value: "refund", label: "Refund deposit" },
                                 { value: "no_refund", label: "No refund" },
                             ]}
                         />
+                        {outcome === "refund" ? (
+                            <AppSelect
+                                label="Deposit refund status"
+                                name="refundStatus"
+                                defaultValue="completed"
+                                required
+                                options={[
+                                    { value: "completed", label: "Refund completed" },
+                                    { value: "pending", label: "Refund pending" },
+                                ]}
+                            />
+                        ) : (
+                            <input type="hidden" name="refundStatus" value="pending" />
+                        )}
                     </>
                 ) : (
                     <>
@@ -211,6 +234,19 @@ export default function AdminCancellationModal({
                         </p>
                     </>
                 )}
+                <AppSelect
+                    label="Final payment status"
+                    name="paymentStatus"
+                    defaultValue="not_applicable"
+                    required
+                    options={[
+                        { value: "not_applicable", label: "No final payment" },
+                        { value: "pending", label: "Payment pending" },
+                        { value: "received", label: "Payment received" },
+                        { value: "refunded", label: "Payment refunded" },
+                        { value: "failed", label: "Payment not collected" },
+                    ]}
+                />
                 <label className="block space-y-2">
                     <span className="label-text">Internal note (optional)</span>
                     <textarea

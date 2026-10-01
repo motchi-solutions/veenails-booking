@@ -24,6 +24,8 @@ import AdminCreditForm from "@/features/admin/credits/components/AdminCreditForm
 import { calculateAppointmentTotals } from "@/features/bookings/utils/appointment-totals";
 import { retryGoogleCalendarSyncAction } from "@/features/integrations/google-calendar/actions/integration";
 import AdminDateChangeRequest from "@/features/admin/appointments/components/AdminDateChangeRequest";
+import AdminCancellationOutcomeCard from "@/features/admin/appointments/components/AdminCancellationOutcomeCard";
+import type { AdminCancellationOutcome } from "@/features/admin/appointments/data/admin-cancellation-outcome";
 
 function ActionButton({
     children,
@@ -48,8 +50,12 @@ function HiddenBookingId({ id }: { id: string }) {
 
 export default function AdminAppointmentDetailsPage({
     booking,
+    cancellationOutcome,
+    openCancellation,
 }: {
     booking: AdminAppointmentDetails;
+    cancellationOutcome: AdminCancellationOutcome | null;
+    openCancellation: boolean;
 }) {
     const isCompleted = booking.status === "completed";
     const instagramOnly =
@@ -183,8 +189,9 @@ export default function AdminAppointmentDetailsPage({
                 <div className="min-w-0 space-y-5 lg:col-start-1 lg:row-start-1">
                     {!isCompleted ? <>
                         <AdminCancellationSummary booking={booking} />
+                        {cancellationOutcome ? <AdminCancellationOutcomeCard outcome={cancellationOutcome} /> : null}
                         <AdminDateChangeRequest booking={booking} />
-                        <AdminAppointmentActions booking={booking} />
+                        <AdminAppointmentActions booking={booking} openCancellation={openCancellation} />
                     </> : null}
                     <div className="rounded-3xl border border-border/60 bg-surface p-5 shadow-sm sm:p-7">
                         <h2 className="text-lg font-semibold text-foreground">

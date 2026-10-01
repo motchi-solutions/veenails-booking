@@ -5,8 +5,10 @@ import { getAdminAppointmentActionRules } from "@/features/admin/appointments/ut
 
 export default function AdminAppointmentActions({
     booking,
+    openCancellation = false,
 }: {
     booking: AdminAppointmentDetails;
+    openCancellation?: boolean;
 }) {
     const rules = getAdminAppointmentActionRules(booking);
     const request = booking.cancellationRequest;
@@ -58,20 +60,13 @@ export default function AdminAppointmentActions({
                 ) : null}
 
                 {rules.canCancel ? (
-                    <details className="w-full rounded-2xl border border-border/60 bg-background p-4 sm:p-5">
-                        <summary className="cursor-pointer select-none text-sm font-semibold text-foreground marker:text-muted">
-                            Cancel appointment
-                        </summary>
-
-                        <div className="mt-4 border-t border-border/60 pt-4">
-                            <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
-                                <AdminCancellationButton
-                                    booking={booking}
-                                    className="btn-secondary w-full"
-                                />
-                            </div>
-                        </div>
-                    </details>
+                    <div className="w-full">
+                        <AdminCancellationButton
+                            booking={booking}
+                            className="btn-secondary w-full"
+                            initiallyOpen={openCancellation}
+                        />
+                    </div>
                 ) : null}
 
                 {rules.terminal ? (

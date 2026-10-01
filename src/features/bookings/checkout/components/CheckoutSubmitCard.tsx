@@ -1,6 +1,7 @@
 import { FiClock } from "react-icons/fi";
 import FormCheckbox from "@/components/shared/form/FormCheckbox";
 import StepSectionCard from "@/components/shared/ui/StepSectionCard";
+import DepositPolicyNotice from "@/features/bookings/components/DepositPolicyNotice";
 
 export default function CheckoutSubmitCard({
     depositConfirmed,
@@ -21,6 +22,8 @@ export default function CheckoutSubmitCard({
             title="Send Booking Request"
             description="Confirm your deposit details before submitting."
         >
+            <DepositPolicyNotice />
+
             <FormCheckbox
                 id="deposit-confirmed"
                 name="deposit-confirmed"
