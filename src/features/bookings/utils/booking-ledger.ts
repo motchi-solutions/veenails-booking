@@ -1,4 +1,5 @@
 export type LedgerPayment = {
+    method?: string;
     type: string;
     status: string;
     amount: number;
@@ -27,11 +28,14 @@ function positiveAmount(value: number) {
 export function calculateBookingLedger({
     appointmentTotal,
     payments,
+    courtesyApplied = false,
 }: {
     appointmentTotal: number;
+    courtesyApplied?: boolean;
     payments: readonly LedgerPayment[];
 }) {
-    const total = positiveAmount(appointmentTotal);
+    const originalTotal = positiveAmount(appointmentTotal);
+    const total = courtesyApplied ? 0 : originalTotal;
     let cashApplied = 0;
     let creditApplied = 0;
     let refundsApplied = 0;
@@ -68,6 +72,7 @@ export function calculateBookingLedger({
 
     return {
         appointmentTotal: total,
+        courtesyAdjustment: courtesyApplied ? originalTotal : 0,
         cashApplied,
         creditApplied,
         refundsApplied,
@@ -106,4 +111,19 @@ export function calculateCheckoutPaymentPlan({
             roundMoney(totalAfterCredit - depositDue),
         ),
     };
+}
+
+export function hasLoyaltyCourtesy(events: readonly {
+    event_type: string;
+    actor_type?: string;
+    metadata: unknown;
+}[]) {
+    return events.some((event) =>
+        event.event_type === "loyalty_courtesy_applied" &&
+        event.actor_type === "admin" &&
+        typeof event.metadata === "object" &&
+        event.metadata !== null &&
+        "adjustment" in event.metadata &&
+        event.metadata.adjustment === "free"
+    );
 }

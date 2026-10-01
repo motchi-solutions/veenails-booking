@@ -8,6 +8,7 @@ export type RefundMethod = Enums<"refund_method">;
 export type BookingStatusFilter = "all" | Exclude<BookingStatus, "held">;
 
 export type BookingSummary = {
+    courtesyApplied?: boolean;
     id: string;
     bookingReference: string;
     status: BookingStatus;

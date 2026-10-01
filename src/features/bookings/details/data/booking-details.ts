@@ -8,7 +8,7 @@ import type {
 } from "@/features/bookings/types/bookings";
 import type { DesignTier } from "@/features/bookings/new-booking/types";
 import type { Database, Enums } from "@/types/supabase";
-import { calculateBookingLedger } from "@/features/bookings/utils/booking-ledger";
+import { calculateBookingLedger, hasLoyaltyCourtesy } from "@/features/bookings/utils/booking-ledger";
 
 type BookingDetailsBaseRow = Pick<
     Database["public"]["Tables"]["bookings"]["Row"],
@@ -103,7 +103,7 @@ type BookingDetailsRow = BookingDetailsBaseRow & {
     booking_events?: Array<
         Pick<
             Database["public"]["Tables"]["booking_events"]["Row"],
-            "id" | "event_type" | "metadata" | "created_at"
+            "id" | "event_type" | "actor_type" | "metadata" | "created_at"
         >
     > | null;
 };
@@ -161,6 +161,7 @@ export type BookingDetailsInspoPrompt = {
 };
 
 export type BookingDetailsData = {
+    courtesyApplied: boolean;
     summary: BookingSummary;
     clientNotes: string | null;
     rejectionReason: string | null;
@@ -262,6 +263,7 @@ const detailsSelect = `
     booking_events (
         id,
         event_type,
+        actor_type,
         metadata,
         created_at
     )
@@ -409,12 +411,15 @@ function mapDetails(row: BookingDetailsRow): BookingDetailsData {
             createdAt: payment.created_at,
         }),
     );
+    const courtesyApplied = row.status === "completed" && hasLoyaltyCourtesy(row.booking_events ?? []);
     const ledger = calculateBookingLedger({
+        courtesyApplied,
         appointmentTotal: finalTotal > 0 ? finalTotal : estimatedTotal,
         payments,
     });
 
     const summary: BookingSummary = {
+        courtesyApplied,
         id: row.id,
         bookingReference: row.booking_reference,
         status: row.status,
@@ -441,6 +446,7 @@ function mapDetails(row: BookingDetailsRow): BookingDetailsData {
 
     return {
         summary,
+        courtesyApplied,
         clientNotes: row.client_notes,
         rejectionReason: null,
         cancellationReason: null,

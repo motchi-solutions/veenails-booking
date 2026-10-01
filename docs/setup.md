@@ -2,7 +2,7 @@
 
 ## Requirements
 
-- Node.js 20 or newer
+- Node.js 20.9 or newer
 - npm
 - Access to the configured Supabase project
 - Brevo and Google Cloud credentials when working on those integrations
@@ -35,10 +35,12 @@ The secret key bypasses Row Level Security and must never be prefixed with
 `NEXT_PUBLIC_`, logged, or used by a Client Component. The application keeps
 its privileged client in `src/lib/supabase/admin.ts`.
 
-This repository contains generated database types in
-`src/types/database.types.ts`, but it does not contain the migrations needed to
-create the database. Treat the configured Supabase project as the current
-schema source of truth until migrations or a schema dump are added.
+The database baseline and subsequent migrations are checked in under
+`supabase/migrations/`. Generated TypeScript types are in
+`src/types/database.types.ts`. Use `npx supabase db push --linked --dry-run` to
+check pending migrations before applying them. If remote versions are missing
+locally, recover their original files from Git rather than marking unapplied
+SQL as applied or rewriting remote history.
 
 Supabase Auth must allow the application's callback URL:
 

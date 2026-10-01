@@ -9,6 +9,9 @@
 
 ## Operations and verification
 
+- [Admin appointments](admin-appointments.md) covers overview previews, counts,
+  completion, responsive layouts, and release verification.
+
 - [Transactional email matrix](email-notifications.md) documents delivery
   triggers, deduplication, configuration, and production verification.
 - [Google Calendar manual verification](google-calendar-manual-tests.md)

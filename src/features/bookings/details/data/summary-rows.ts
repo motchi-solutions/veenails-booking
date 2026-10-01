@@ -20,7 +20,7 @@ type TotalDisplay = {
 
 type SummaryRowsData = Pick<
     BookingDetailsData,
-    "depositStatus" | "cancellationRequest" | "inspoPrompt"
+    "depositStatus" | "cancellationRequest" | "inspoPrompt" | "courtesyApplied"
 >;
 
 type SummaryRow = {
@@ -73,7 +73,9 @@ export const summaryRows = (
         },
         {
             label: "Deposit/payment status",
-            value: getDepositStatusLabel(data.depositStatus),
+            value: data.courtesyApplied
+                ? "Complimentary · Loyalty courtesy applied"
+                : getDepositStatusLabel(data.depositStatus),
         },
         {
             label: "Design inspo",

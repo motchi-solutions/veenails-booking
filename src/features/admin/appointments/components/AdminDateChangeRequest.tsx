@@ -33,6 +33,8 @@ export default function AdminDateChangeRequest({
         }
     }, [error, router, state.error, state.messageId, state.success, success]);
 
+    if (booking.status === "completed") return null;
+
     if (!request) {
         if (!outcome) return null;
 

@@ -1,3 +1,4 @@
+import { calculateAppointmentTotals } from "@/features/bookings/utils/appointment-totals";
 import Link from "next/link";
 import { FiArrowRight } from "react-icons/fi";
 import type { AdminAppointmentListItem } from "@/features/admin/appointments/data/admin-appointments";
@@ -14,6 +15,8 @@ import {
 import AdminBookingWorkflowButton from "@/features/admin/appointments/components/AdminBookingWorkflowButton";
 
 function QuickAction({ booking }: { booking: AdminAppointmentListItem }) {
+    if (booking.status === "completed") return null;
+
     return (
         <>
             <AdminBookingWorkflowButton
@@ -73,8 +76,7 @@ export default function AdminAppointmentRow({
     const contact = preferredContact
         ? `${formatContactMethod(preferredContact)} · ${contactValue ?? fallbackContact}`
         : fallbackContact;
-    const total =
-        booking.finalTotal > 0 ? booking.finalTotal : booking.estimatedTotal;
+    const { amountDue } = calculateAppointmentTotals(booking.completionTotals);
 
     return (
         <article className="rounded-2xl border border-border/60 bg-background p-4 transition hover:border-dark-green/30 hover:shadow-sm sm:p-5">
@@ -89,7 +91,7 @@ export default function AdminAppointmentRow({
                     {booking.isExternalClient ? (
                         <AdminStatusPill label="External client" />
                     ) : null}
-                    {booking.pendingDateChangeRequest ? (
+                    {booking.status !== "completed" && booking.pendingDateChangeRequest ? (
                         <AdminStatusPill label="Date change requested" />
                     ) : null}
                 </div>
@@ -110,15 +112,15 @@ export default function AdminAppointmentRow({
                     </p>
                 </div>
                 <p className="text-sm text-muted sm:shrink-0 sm:text-right">
-                    Amount due:{" "}
+                    {booking.courtesyApplied ? "Loyalty courtesy · Amount due:" : "Amount due:"}{" "}
                     <span className="font-semibold text-foreground">
-                        {formatMoney(total)}
+                        {formatMoney(amountDue)}
                     </span>
                 </p>
             </div>
             <div
                 className={[
-                    "my-4 grid gap-2",
+                    "mt-4 grid gap-2 lg:flex lg:flex-wrap lg:items-center",
                     quickAction ? "sm:grid-cols-2" : "",
                 ].join(" ")}
             >

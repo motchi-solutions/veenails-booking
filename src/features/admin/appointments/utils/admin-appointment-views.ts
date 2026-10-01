@@ -21,6 +21,14 @@ export function isStudioDayAppointment(
 }
 
 export const adminAppointmentViews = {
+    needs_action: {
+        label: "Needs action",
+        description: "All appointments needing an admin action.",
+    },
+    future_appointments: {
+        label: "Future appointments",
+        description: "All active future appointments, including those awaiting a time.",
+    },
     upcoming_confirmed: {
         label: "Upcoming confirmed",
         description: "Confirmed appointments scheduled for the future.",
@@ -57,9 +65,17 @@ export function matchesAdminAppointmentView(
     view: AdminAppointmentView,
     now: number,
 ) {
+    // Completion is explicit persisted state, never inferred from the date.
+    if (booking.status === "completed") return false;
+
     const startsAt = booking.startsAt
         ? new Date(booking.startsAt).getTime()
         : null;
+    if (view === "needs_action") return needsAdminAction(booking, now);
+    if (view === "future_appointments") {
+        return ["held", "requested", "confirmed", "cancellation_requested"].includes(booking.status)
+            && (startsAt === null || startsAt >= now);
+    }
     if (view === "upcoming_confirmed") {
         return (
             booking.status === "confirmed" &&
@@ -87,6 +103,9 @@ export function needsAdminAction(
     booking: AdminAppointmentListItem,
     now: number,
 ) {
+    // Completion is explicit persisted state, never inferred from the date.
+    if (booking.status === "completed") return false;
+
     const startsAt = booking.startsAt
         ? new Date(booking.startsAt).getTime()
         : null;

@@ -1,3 +1,4 @@
+import AdminCollapsibleSection from "@/features/admin/components/AdminCollapsibleSection";
 import AdminAppointmentRow from "@/features/admin/appointments/components/AdminAppointmentRow";
 import type { AdminAppointmentListItem } from "@/features/admin/appointments/data/admin-appointments";
 import AdminEmptyState from "@/features/admin/components/AdminEmptyState";
@@ -37,33 +38,29 @@ function Section({
     bookings,
     quickAction = false,
     collapsed = false,
+    collapsible = false,
 }: {
     title: string;
     description: string;
     bookings: AdminAppointmentListItem[];
     quickAction?: boolean;
     collapsed?: boolean;
+    collapsible?: boolean;
 }) {
-    if (collapsed)
+    if (collapsible || collapsed)
         return (
-            <details className="rounded-3xl border border-border/60 bg-surface p-5 shadow-sm sm:p-7">
-                <summary className="cursor-pointer font-semibold text-foreground">
-                    {title}{" "}
-                    <span className="ml-2 text-sm font-normal text-muted">
-                        {bookings.length}
-                    </span>
-                </summary>
-                <p className="mt-2 text-sm text-muted">{description}</p>
+            <AdminCollapsibleSection title={title} count={bookings.length} defaultOpen={!collapsed}>
+                <p className="text-sm text-muted">{description}</p>
                 <div className="mt-4 space-y-3">
-                    <AppointmentList bookings={bookings} />
+                    <AppointmentList bookings={bookings} quickAction={quickAction} />
                 </div>
-            </details>
+            </AdminCollapsibleSection>
         );
     return (
         <section className="space-y-3 rounded-3xl border border-border/60 bg-surface p-5 shadow-sm sm:p-7">
             <div>
                 <h2 className="text-lg font-semibold text-foreground">
-                    {title}
+                    {title} <span className="text-sm font-normal tabular-nums text-muted">({bookings.length})</span>
                 </h2>
                 <p className="mt-1 text-sm text-muted">{description}</p>
             </div>
@@ -147,7 +144,7 @@ export default function AdminAppointmentsPage({
         : [];
 
     return (
-        <div className="space-y-6">
+        <div className="mx-auto w-full min-w-0 max-w-6xl space-y-5 sm:space-y-6">
             <section className="rounded-3xl border border-border/60 bg-surface p-5 shadow-sm sm:p-7">
                 <AdminPageHeader
                     eyebrow="Admin"
@@ -207,22 +204,26 @@ export default function AdminAppointmentsPage({
                 />
             ) : (
                 <>
+                    <div className="grid items-start gap-5 lg:grid-cols-2 sm:gap-6">
+                        <Section
+                            title="Needs action"
+                            description="Requests, deposits, and appointments waiting to be completed."
+                            bookings={needsAction}
+                            quickAction
+                            collapsible
+                        />
+                        <Section
+                            title="Upcoming"
+                            description="Active future appointments in chronological order."
+                            bookings={upcoming}
+                            collapsible
+                        />
+                    </div>
                     <Section
                         title="Today"
                         description="All of today's studio appointments, from opening through close."
                         bookings={current}
                         quickAction
-                    />
-                    <Section
-                        title="Needs action"
-                        description="Unresolved requests, deposits, and appointments ready to close stay here even when their scheduled time has passed."
-                        bookings={needsAction}
-                        quickAction
-                    />
-                    <Section
-                        title="Upcoming"
-                        description="Active future appointments in chronological order."
-                        bookings={upcoming}
                     />
                     <Section
                         title="Cancelled / no-show"

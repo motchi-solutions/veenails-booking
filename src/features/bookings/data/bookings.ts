@@ -13,7 +13,7 @@ import {
 } from "@/features/bookings/utils/booking-status";
 import { formatBookingDate } from "@/features/bookings/utils/booking-formatters";
 import type { Database } from "@/types/supabase";
-import { calculateBookingLedger } from "@/features/bookings/utils/booking-ledger";
+import { calculateBookingLedger, hasLoyaltyCourtesy } from "@/features/bookings/utils/booking-ledger";
 
 type BookingBaseRow = Pick<
     Database["public"]["Tables"]["bookings"]["Row"],
@@ -31,6 +31,7 @@ type BookingBaseRow = Pick<
 >;
 
 type BookingRow = BookingBaseRow & {
+    booking_events?: Pick<Database["public"]["Tables"]["booking_events"]["Row"], "event_type" | "actor_type" | "metadata">[] | null;
     availability_slots?: Pick<
         Database["public"]["Tables"]["availability_slots"]["Row"],
         "starts_at" | "ends_at"
@@ -100,6 +101,7 @@ const selectSummary = `
         removed_at,
         created_at
     ),
+    booking_events (event_type, actor_type, metadata),
     booking_payments (
         payment_type,
         status,
@@ -201,7 +203,9 @@ function mapBookingSummary(row: BookingRow) {
             : calculatedSubtotal;
 
     const finalTotal = Number(row.final_total || 0);
+    const courtesyApplied = row.status === "completed" && hasLoyaltyCourtesy(row.booking_events ?? []);
     const ledger = calculateBookingLedger({
+        courtesyApplied,
         appointmentTotal: finalTotal > 0 ? finalTotal : estimatedTotal,
         payments: (row.booking_payments ?? []).map((payment) => ({
             type: payment.payment_type,
@@ -221,6 +225,7 @@ function mapBookingSummary(row: BookingRow) {
     return {
         id: row.id,
         bookingReference: row.booking_reference,
+        courtesyApplied,
         status: row.status,
         depositStatus: row.deposit_status,
         startsAt: row.availability_slots?.starts_at ?? null,

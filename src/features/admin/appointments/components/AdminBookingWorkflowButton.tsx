@@ -98,7 +98,7 @@ function getWorkflowOptions(
                 value: "completed",
                 label: "Mark appointment completed",
                 description:
-                    "Closes the appointment as successfully completed.",
+                    "Confirm the final price, apply any loyalty courtesy, and record the payment.",
             },
             {
                 value: "no_show",
@@ -230,7 +230,7 @@ export default function AdminBookingWorkflowButton({
 
                             {decision === "completed" ? (
                                 <AdminCompletionPaymentFields
-                                    suggestedTotal={total}
+                                    totals={booking.completionTotals}
                                 />
                             ) : null}
 

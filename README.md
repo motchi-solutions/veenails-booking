@@ -33,7 +33,7 @@ Google Calendar from a protected admin area.
 
 ### Prerequisites
 
-- Node.js 20 or newer
+- Node.js 20.9 or newer
 - npm
 - Access to the existing Supabase project and its configured database
 - Supabase CLI access when changing or restoring the database schema
@@ -84,6 +84,7 @@ created for the flow being tested.
 | `npm run build` | Create a production build |
 | `npm run start` | Serve a completed production build |
 | `npm run lint` | Run ESLint |
+| `npm test` | Run pricing, pagination, and isolated PostgreSQL regression tests |
 | `npx supabase db reset` | Rebuild the local database from migrations |
 | `npx supabase db lint` | Check local database functions and schema |
 | `npx supabase migration list --linked` | Compare local and remote migration history |

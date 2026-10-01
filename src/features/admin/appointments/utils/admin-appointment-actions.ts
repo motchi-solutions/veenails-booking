@@ -53,7 +53,7 @@ export function getAdminAppointmentActionRules(
                 booking.status === "held" ||
                 booking.status === "confirmed"),
         canReviewCancellation: pendingCancellation,
-        canReviewInspo: booking.inspoPrompt?.status === "sent",
+        canReviewInspo: !terminal && booking.inspoPrompt?.status === "sent",
         terminal,
     };
 }
