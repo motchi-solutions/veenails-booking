@@ -15,7 +15,7 @@ import {
     calculateAdminDiscountedPricing,
     parseAdminDiscountPercentage,
 } from "@/features/admin/appointments/utils/admin-discount";
-import { completeBookingWithSettlement } from "@/features/admin/appointments/utils/complete-booking";
+import { completeBookingWithSettlement, completeBookingWithCourtesy } from "@/features/admin/appointments/utils/complete-booking";
 import { calculateBookingLedger } from "@/features/bookings/utils/booking-ledger";
 import { buildBookingServiceLineItems } from "@/features/bookings/utils/booking-line-items";
 import {
@@ -541,13 +541,22 @@ export async function processAdminBookingWorkflowAction(
                 });
             }
 
+            const completionMode = getString(formData, "completionMode") || "standard";
+            const loyaltyPercentage = getNumber(formData, "loyaltyPercentage");
+            if (decision === "completed" && !["standard", "free", "discount"].includes(completionMode)) {
+                return workflowState({ error: "Choose how to complete the appointment.", success: "" });
+            }
+            if (decision === "completed" && completionMode === "discount" &&
+                (loyaltyPercentage === null || loyaltyPercentage <= 0 || loyaltyPercentage >= 100)) {
+                return workflowState({ error: "Enter a loyalty discount between 0 and 100 percent.", success: "" });
+            }
             const totalCharged = getNumber(formData, "totalCharged");
             const paymentMethod = getString(formData, "paymentMethod");
             if (
-                decision === "completed" &&
+                decision === "completed" && completionMode !== "free" &&
                 (totalCharged === null ||
                     totalCharged <= 0 ||
-                    Math.round(totalCharged * 100) !== totalCharged * 100)
+                    Math.abs(Math.round(totalCharged * 100) - totalCharged * 100) > 0.000001)
             ) {
                 return workflowState({
                     error: "Enter the complete amount charged, with no more than two decimal places.",
@@ -555,7 +564,7 @@ export async function processAdminBookingWorkflowAction(
                 });
             }
             if (
-                decision === "completed" &&
+                decision === "completed" && completionMode !== "free" &&
                 !["cash", "etransfer", "other"].includes(paymentMethod)
             ) {
                 return workflowState({
@@ -566,7 +575,14 @@ export async function processAdminBookingWorkflowAction(
 
             const settlement =
                 decision === "completed"
-                    ? await completeBookingWithSettlement({
+                    ? completionMode !== "standard"
+                        ? await completeBookingWithCourtesy({
+                            admin, bookingId, adminUserId: user.id, mode: completionMode as "free" | "discount",
+                            baseTotal: totalCharged ?? 0, percentage: loyaltyPercentage, paymentMethod,
+                            refundMethod: getString(formData, "refundMethod"),
+                            refundConfirmed: getString(formData, "refundConfirmed") === "yes",
+                          })
+                        : await completeBookingWithSettlement({
                           admin,
                           bookingId,
                           userId: booking.user_id,
@@ -614,12 +630,14 @@ export async function processAdminBookingWorkflowAction(
                 decision === "completed"
                     ? settlement?.overpaymentCredit
                         ? `Your appointment was completed. An overpayment of $${settlement.overpaymentCredit.toFixed(2)} was returned as studio credit.`
-                        : "Your appointment was marked completed."
+                        : completionMode === "free"
+                            ? "Your appointment was completed as a free loyalty courtesy. No payment is due."
+                            : "Your appointment was marked completed."
                     : `The appointment was marked as a no-show. ${reason}`,
                 `appointment_${decision}`,
             );
 
-            if (settlement?.overpaymentCredit && booking.user_id) {
+            if ((settlement?.overpaymentCredit || completionMode === "free") && booking.user_id) {
                 revalidatePath("/credits");
                 revalidatePath(`/admin/users/${booking.user_id}`);
             }
@@ -631,7 +649,7 @@ export async function processAdminBookingWorkflowAction(
                     decision === "completed"
                         ? settlement?.overpaymentCredit
                             ? `Appointment completed and $${settlement.overpaymentCredit.toFixed(2)} returned as studio credit.`
-                            : "Appointment marked completed."
+                            : completionMode === "free" ? "Appointment completed · Free loyalty courtesy applied." : "Appointment marked completed."
                         : "Appointment marked no-show.",
             });
         }

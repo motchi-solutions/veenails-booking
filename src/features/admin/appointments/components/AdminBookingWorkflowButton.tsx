@@ -11,11 +11,6 @@ import {
     processAdminBookingWorkflowAction,
     type AdminBookingWorkflowState,
 } from "@/features/admin/appointments/actions/admin-appointments";
-import {
-    applyLoyaltyAdjustmentAction,
-    type LoyaltyActionState,
-} from "@/features/admin/loyalty/actions/admin-loyalty";
-import AdminLoyaltyAdjustmentFields from "@/features/admin/appointments/components/AdminLoyaltyAdjustmentFields";
 import type { AdminAppointmentListItem } from "@/features/admin/appointments/data/admin-appointments";
 import {
     formatBookingDateTime,
@@ -28,8 +23,7 @@ type WorkflowDecision =
     | "reject_no_deposit"
     | "completed"
     | "no_show"
-    | "cancelled"
-    | "loyalty_reward";
+    | "cancelled";
 
 type WorkflowOption = {
     value: WorkflowDecision;
@@ -38,11 +32,6 @@ type WorkflowOption = {
 };
 
 const initialState: AdminBookingWorkflowState = {
-    error: "",
-    success: "",
-    messageId: "",
-};
-const initialLoyaltyState: LoyaltyActionState = {
     error: "",
     success: "",
     messageId: "",
@@ -109,7 +98,7 @@ function getWorkflowOptions(
                 value: "completed",
                 label: "Mark appointment completed",
                 description:
-                    "Closes the appointment as successfully completed.",
+                    "Confirm the final price, apply any loyalty courtesy, and record the payment.",
             },
             {
                 value: "no_show",
@@ -123,12 +112,6 @@ function getWorkflowOptions(
             label: "Cancel appointment",
             description:
                 "Continue to the full cancellation flow to record the reason, deposit outcome, refund, and payment status.",
-        });
-        options.push({
-            value: "loyalty_reward",
-            label: "Apply loyalty courtesy",
-            description:
-                "Finish with a free appointment or percentage discount. Eligibility is decided by the admin and is not tracked by the website.",
         });
     }
 
@@ -168,10 +151,6 @@ export default function AdminBookingWorkflowButton({
         processAdminBookingWorkflowAction,
         initialState,
     );
-    const [loyaltyState, loyaltyAction, loyaltyPending] = useActionState(
-        applyLoyaltyAdjustmentAction,
-        initialLoyaltyState,
-    );
     const selected = options.find((option) => option.value === decision);
     const needsReason = decision === "reject_credit" || decision === "no_show";
     const total =
@@ -190,18 +169,6 @@ export default function AdminBookingWorkflowButton({
         }
     }, [error, router, state.error, state.messageId, state.success, success]);
 
-    useEffect(() => {
-        if (!loyaltyState.messageId) return;
-        if (loyaltyState.error) {
-            error(loyaltyState.error, "Loyalty reward not applied");
-            return;
-        }
-        if (loyaltyState.success) {
-            success(loyaltyState.success, "Loyalty reward applied");
-            window.setTimeout(() => setOpen(false), 0);
-            router.refresh();
-        }
-    }, [error, loyaltyState, router, success]);
 
     if (options.length === 0) return null;
 
@@ -227,11 +194,7 @@ export default function AdminBookingWorkflowButton({
                         onClose={() => setOpen(false)}
                     >
                         <form
-                            action={
-                                decision === "loyalty_reward"
-                                    ? loyaltyAction
-                                    : formAction
-                            }
+                            action={formAction}
                             className="space-y-4"
                         >
                             <input
@@ -281,13 +244,10 @@ export default function AdminBookingWorkflowButton({
 
                             {decision === "completed" ? (
                                 <AdminCompletionPaymentFields
-                                    suggestedTotal={total}
+                                    totals={booking.completionTotals}
                                 />
                             ) : null}
 
-                            {decision === "loyalty_reward" ? (
-                                <AdminLoyaltyAdjustmentFields />
-                            ) : null}
                             {needsReason ? (
                                 <label className="block space-y-2">
                                     <span className="label-text">
@@ -323,19 +283,17 @@ export default function AdminBookingWorkflowButton({
                                 <button
                                     type={decision === "cancelled" ? "button" : "submit"}
                                     className="btn-primary"
-                                    disabled={pending || loyaltyPending || !decision}
+                                    disabled={pending || !decision}
                                     onClick={
                                         decision === "cancelled"
                                             ? continueToCancellation
                                             : undefined
                                     }
                                 >
-                                    {pending || loyaltyPending
+                                    {pending
                                         ? "Saving..."
                                         : decision === "cancelled"
                                           ? "Next"
-                                          : decision === "loyalty_reward"
-                                            ? "Apply loyalty reward"
                                           : "Apply update"}
                                 </button>
                             </div>

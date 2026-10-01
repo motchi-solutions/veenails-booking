@@ -8,12 +8,12 @@ export default function TotalsRow({
     prominent?: boolean;
 }) {
     return (
-        <div className="mt-3 flex items-center justify-between gap-3 first:mt-0">
+        <div className="mt-3 flex items-start justify-between gap-3 first:mt-0">
             <span
                 className={
                     prominent
-                        ? "text-sm font-semibold text-foreground"
-                        : "text-sm text-muted"
+                        ? "min-w-0 break-words text-sm font-semibold text-foreground"
+                        : "min-w-0 break-words text-sm text-muted"
                 }
             >
                 {label}
@@ -21,8 +21,8 @@ export default function TotalsRow({
             <span
                 className={
                     prominent
-                        ? "text-lg font-semibold text-foreground"
-                        : "text-sm font-semibold text-foreground"
+                        ? "shrink-0 whitespace-nowrap text-right text-lg font-semibold tabular-nums text-foreground"
+                        : "shrink-0 whitespace-nowrap text-right text-sm font-semibold tabular-nums text-foreground"
                 }
             >
                 {value}

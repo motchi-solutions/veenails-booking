@@ -135,6 +135,10 @@ export function getBookingTotalDisplay(booking: BookingSummary) {
         };
     }
 
+    if (booking.courtesyApplied) {
+        return { label: "Loyalty courtesy", value: formatMoney(0), amount: 0 };
+    }
+
     const useFinalTotal =
         booking.status === "completed" && booking.finalTotal > 0;
     const amount = useFinalTotal

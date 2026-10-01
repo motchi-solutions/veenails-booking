@@ -1,9 +1,11 @@
+import { fetchAllPages } from "@/lib/utils/fetch-all-pages";
+import type { AppointmentTotalsInput } from "@/features/bookings/utils/appointment-totals";
 import { notFound } from "next/navigation";
 import { requireAdmin } from "@/features/admin/auth/require-admin";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { resolveBookingRecipient } from "@/features/notifications/utils/resolve-booking-recipient";
 import type { Database, Enums, Json } from "@/types/supabase";
-import { calculateBookingLedger } from "@/features/bookings/utils/booking-ledger";
+import { calculateBookingLedger, hasLoyaltyCourtesy } from "@/features/bookings/utils/booking-ledger";
 
 type BookingStatus = Enums<"booking_status">;
 type DepositStatus = Enums<"deposit_status">;
@@ -13,6 +15,8 @@ type InspoStatus = Enums<"booking_inspo_status">;
 type ClientPreferredContactMethod = "email" | "instagram";
 
 export type AdminAppointmentListItem = {
+    completionTotals: AppointmentTotalsInput;
+    courtesyApplied?: boolean;
     id: string;
     userId: string | null;
     bookingReference: string;
@@ -110,6 +114,7 @@ export type AdminBookingEvent = {
 };
 
 export type AdminAppointmentDetails = AdminAppointmentListItem & {
+    courtesyApplied: boolean;
     adminNotes: string | null;
     amountDue: number;
     amountPaid: number;
@@ -139,6 +144,7 @@ type AdminAppointmentRow = Pick<
     | "deposit_amount"
     | "estimated_total"
     | "final_total"
+    | "booking_fee_amount"
     | "created_at"
     | "user_id"
     | "client_display_name"
@@ -149,6 +155,7 @@ type AdminAppointmentRow = Pick<
     | "google_calendar_synced_at"
     | "google_calendar_sync_error"
 > & {
+    booking_payments: Pick<Database["public"]["Tables"]["booking_payments"]["Row"], "id" | "amount" | "payment_type" | "status" | "method" | "paid_at" | "notes" | "created_at">[] | null;
     availability_slots:
         | Pick<
               Database["public"]["Tables"]["availability_slots"]["Row"],
@@ -298,6 +305,8 @@ const listSelect = `
     deposit_amount,
     estimated_total,
     final_total,
+    booking_fee_amount,
+    booking_payments (amount, payment_type, status, method),
     created_at,
     user_id,
     client_display_name,
@@ -318,8 +327,8 @@ const listSelect = `
     ),
     cancellation_requests ( id, status, created_at ),
     booking_inspo_prompts ( id, status, created_at ),
-    booking_events ( id, event_type, metadata, created_at )
-    ,booking_line_items ( label_snapshot, item_type, active, removed_at )
+    booking_events ( id, event_type, actor_type, metadata, created_at )
+    ,booking_line_items ( id, label_snapshot, item_type, line_total, active, removed_at )
 `;
 
 const detailsSelect = `
@@ -479,6 +488,13 @@ function mapListItem(row: AdminAppointmentRow): AdminAppointmentListItem {
     const client = resolveBookingRecipient(row);
 
     return {
+        completionTotals: {
+            items: (row.booking_line_items ?? []).filter((item) => item.active && !item.removed_at).map((item) => ({ id: item.id, itemType: item.item_type, label: item.label_snapshot, lineTotal: Number(item.line_total) })),
+            bookingFee: Number(row.booking_fee_amount ?? 0),
+            appointmentTotal: row.status === "completed" ? Number(row.final_total) : Number(row.estimated_total),
+            payments: (row.booking_payments ?? []).map((payment) => ({ type: payment.payment_type, status: payment.status, amount: Number(payment.amount), method: payment.method })),
+            courtesyApplied: row.status === "completed" && hasLoyaltyCourtesy(row.booking_events ?? []),
+        },
         id: row.id,
         userId: row.user_id,
         bookingReference: row.booking_reference,
@@ -490,6 +506,7 @@ function mapListItem(row: AdminAppointmentRow): AdminAppointmentListItem {
         estimatedTotal: Number(row.estimated_total ?? 0),
         finalTotal: Number(row.final_total ?? 0),
         createdAt: row.created_at,
+        courtesyApplied: row.status === "completed" && hasLoyaltyCourtesy(row.booking_events ?? []),
         clientDisplayName: client.displayName,
         clientEmail: client.email,
         clientPhone: row.profiles?.phone ?? null,
@@ -539,7 +556,9 @@ function mapDetails(row: AdminAppointmentDetailsRow): Omit<AdminAppointmentDetai
         listItem.finalTotal > 0
             ? listItem.finalTotal
             : listItem.estimatedTotal;
+    const courtesyApplied = row.status === "completed" && hasLoyaltyCourtesy(row.booking_events ?? []);
     const ledger = calculateBookingLedger({
+        courtesyApplied,
         appointmentTotal,
         payments: payments.map((payment) => ({
             type: payment.paymentType,
@@ -550,6 +569,7 @@ function mapDetails(row: AdminAppointmentDetailsRow): Omit<AdminAppointmentDetai
 
     return {
         ...listItem,
+        courtesyApplied,
         adminNotes: row.admin_notes,
         amountDue: ledger.amountDue,
         amountPaid: ledger.totalApplied,
@@ -642,15 +662,19 @@ export async function getAdminAppointments({
         query = query.eq("status", status as BookingStatus);
     }
 
-    const { data, error } = await query
+    const orderedQuery = query
         .order("created_at", { ascending: false })
-        .limit(100)
-        .overrideTypes<AdminAppointmentRow[]>();
-
-    if (error) {
-        console.error("[admin:appointments:list]", error);
-        throw new Error("We couldn't load appointments.");
-    }
+        .order("id", { ascending: false });
+    const data = await fetchAllPages<AdminAppointmentRow>(async (from, to) => {
+        const { data: page, error } = await orderedQuery
+            .range(from, to)
+            .overrideTypes<AdminAppointmentRow[]>();
+        if (error) {
+            console.error("[admin:appointments:list]", error);
+            throw new Error("We couldn't load appointments.");
+        }
+        return page ?? [];
+    });
 
     const normalizedSearch = search.trim().toLowerCase();
     const rows = (data ?? []).map(mapListItem);

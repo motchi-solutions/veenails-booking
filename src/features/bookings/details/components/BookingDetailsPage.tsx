@@ -2,7 +2,7 @@ import Link from "next/link";
 import { FiArrowLeft, FiEdit3 } from "react-icons/fi";
 
 import SummaryRow from "@/components/shared/ui/SummaryRow";
-import TotalsRow from "@/components/shared/ui/TotalsRow";
+import AppointmentTotals from "@/features/bookings/components/AppointmentTotals";
 import BookingStatusBadge from "@/features/bookings/components/BookingStatusBadge";
 import BookingCancellationCard from "@/features/bookings/details/components/BookingCancellationCard";
 import type { BookingDetailsData } from "@/features/bookings/details/data/booking-details";
@@ -11,7 +11,6 @@ import { shouldShowBookingInspoSubmission } from "@/features/bookings/inspo/data
 import {
     formatBookingDateTime,
     formatBookingReference,
-    formatMoney,
     getBookingReferenceHref,
     getBookingTotalDisplay,
 } from "@/features/bookings/utils/booking-formatters";
@@ -27,7 +26,6 @@ import { calculateBookingLedger } from "@/features/bookings/utils/booking-ledger
 import BookingDetailsHeader from "./BookingDetailsHeader";
 import { summaryRows } from "../data/summary-rows";
 import BookingCancellationSummary from "@/features/bookings/details/components/BookingCancellationSummary";
-import { normalizeBookingFeeRate } from "@/features/bookings/new-booking/utils";
 import StudioArrivalContactCard from "./StudioArrivalContactCard";
 
 export default function BookingDetailsPage({
@@ -48,9 +46,11 @@ export default function BookingDetailsPage({
         0,
         subtotalBeforeDiscount - discountTotal,
     );
-    const bookingFeeRate = normalizeBookingFeeRate(data.bookingFeeRate);
     const ledger = calculateBookingLedger({
-        appointmentTotal: totalDisplay.amount,
+        courtesyApplied: data.courtesyApplied,
+        appointmentTotal: data.courtesyApplied
+            ? discountedSubtotal + data.bookingFeeAmount
+            : totalDisplay.amount,
         payments: data.payments.map((payment) => ({
             type: payment.type,
             status: payment.status,
@@ -196,112 +196,14 @@ export default function BookingDetailsPage({
 
             <div className="py-6">
                 <BookingDetailsHeader title="Services and pricing" />
-                <div className="mt-4 grid gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(280px,0.72fr)]">
-                    <div className="space-y-3">
-                        {booking.lineItems.some(
-                            (item) =>
-                                item.itemType !== "discount" &&
-                                (item.itemType !== "fee" ||
-                                    data.bookingFeeMode === "added_on_top"),
-                        ) ? (
-                            booking.lineItems
-                                .filter(
-                                    (item) =>
-                                        item.itemType !== "discount" &&
-                                        (item.itemType !== "fee" ||
-                                            data.bookingFeeMode ===
-                                                "added_on_top"),
-                                )
-                                .map((item) => (
-                                    <div
-                                        key={item.id}
-                                        className="flex items-start justify-between gap-4 rounded-2xl bg-background p-4"
-                                    >
-                                        <div className="min-w-0">
-                                            <p className="text-sm font-semibold text-foreground">
-                                                {item.label}
-                                            </p>
-                                            <p className="mt-1 text-xs text-muted">
-                                                Qty {item.quantity}
-                                            </p>
-                                        </div>
-                                        <p className="shrink-0 text-sm font-semibold text-foreground">
-                                            {formatMoney(item.lineTotal)}
-                                        </p>
-                                    </div>
-                                ))
-                        ) : (
-                            <p className="rounded-2xl border border-dashed border-border/60 bg-background p-4 text-sm text-muted">
-                                Service details are still being finalized.
-                            </p>
-                        )}
-                    </div>
-
-                    <div className="rounded-2xl bg-background p-4">
-                        <TotalsRow
-                            label="Subtotal"
-                            value={formatMoney(subtotalBeforeDiscount)}
-                        />
-                        {discounts.map((discount) => (
-                            <div key={discount.id}>
-                                <TotalsRow
-                                    label={discount.label}
-                                    value={`-${formatMoney(discount.amount)}`}
-                                />
-                                {discount.reason ? (
-                                    <p className="-mt-1 mb-2 text-xs text-muted">
-                                        {discount.reason}
-                                    </p>
-                                ) : null}
-                            </div>
-                        ))}
-                        {discountTotal > 0 ? (
-                            <TotalsRow
-                                label="Discounted subtotal"
-                                value={formatMoney(discountedSubtotal)}
-                            />
-                        ) : null}
-                        {data.bookingFeeMode === "added_on_top" &&
-                        bookingFeeRate > 0 ? (
-                            <TotalsRow
-                                label={`Booking fee (${bookingFeeRate}%)`}
-                                value={`+${formatMoney(data.bookingFeeAmount)}`}
-                            />
-                        ) : null}
-                        <div className="mt-4 border-t border-border/60 pt-4">
-                            <TotalsRow
-                                label={totalDisplay.label}
-                                value={totalDisplay.value}
-                                prominent
-                            />
-                        </div>
-                        {ledger.cashApplied > 0 ? (
-                            <TotalsRow
-                                label="Deposit/payments applied"
-                                value={`-${formatMoney(ledger.cashApplied)}`}
-                            />
-                        ) : null}
-                        {creditUsed > 0 ? (
-                            <TotalsRow
-                                label="Account credit applied"
-                                value={`-${formatMoney(creditUsed)}`}
-                            />
-                        ) : null}
-                        <div className="mt-4 border-t border-border/60 pt-4">
-                            <TotalsRow
-                                label="Amount to be charged"
-                                value={formatMoney(remainingBalance)}
-                                prominent
-                            />
-                        </div>
-                        {ledger.overpayment > 0 ? (
-                            <p className="mt-3 text-xs leading-relaxed text-muted">
-                                {formatMoney(ledger.overpayment)} will be
-                                returned as studio credit when this appointment
-                                is completed.
-                            </p>
-                        ) : null}
-                    </div>
+                <div className="mt-4">
+                    <AppointmentTotals input={{
+                        items: booking.lineItems,
+                        bookingFee: data.bookingFeeAmount,
+                        appointmentTotal: totalDisplay.amount,
+                        payments: data.payments,
+                        courtesyApplied: data.courtesyApplied,
+                    }} />
                 </div>
             </div>
 

@@ -10,6 +10,7 @@ import {
 } from "@/features/admin/appointments/utils/admin-appointment-views";
 
 export type AdminDashboardData = {
+    counts: { needsAction: number; upcoming: number; today: number };
     metrics: {
         upcomingConfirmed: number;
         pendingRequests: number;
@@ -28,14 +29,7 @@ export async function getAdminDashboardData(): Promise<AdminDashboardData> {
     const appointments = await getAdminAppointments({ status: "all" });
     const now = Date.now();
     const upcoming = appointments
-        .filter(
-            (booking) =>
-                ["held", "requested", "confirmed", "cancellation_requested"].includes(
-                    booking.status,
-                ) &&
-                (!booking.startsAt ||
-                    new Date(booking.startsAt).getTime() >= now),
-        )
+        .filter((booking) => matchesAdminAppointmentView(booking, "future_appointments", now))
         .sort((a, b) => {
             const aTime = a.startsAt ? new Date(a.startsAt).getTime() : 0;
             const bTime = b.startsAt ? new Date(b.startsAt).getTime() : 0;
@@ -57,6 +51,7 @@ export async function getAdminDashboardData(): Promise<AdminDashboardData> {
         .sort((a, b) => +new Date(a.startsAt!) - +new Date(b.startsAt!));
 
     return {
+        counts: { needsAction: queue.length, upcoming: upcoming.length, today: today.length },
         metrics: {
             upcomingConfirmed: upcoming.filter(
                 (booking) =>
@@ -83,7 +78,8 @@ export async function getAdminDashboardData(): Promise<AdminDashboardData> {
                     ),
             ).length,
             pendingDateChanges: appointments.filter(
-                (booking) => booking.pendingDateChangeRequest !== null,
+                (booking) =>
+                    matchesAdminAppointmentView(booking, "pending_date_changes", now),
             ).length,
             pendingInspoReviews: appointments.filter(
                 (booking) =>

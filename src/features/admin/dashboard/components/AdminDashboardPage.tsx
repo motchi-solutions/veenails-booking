@@ -1,6 +1,7 @@
 import Link from "next/link";
 import AdminAppointmentRow from "@/features/admin/appointments/components/AdminAppointmentRow";
 import AdminEmptyState from "@/features/admin/components/AdminEmptyState";
+import AdminCollapsibleSection from "@/features/admin/components/AdminCollapsibleSection";
 import AdminPageHeader from "@/features/admin/components/AdminPageHeader";
 import type { AdminDashboardData } from "@/features/admin/dashboard/data/admin-dashboard";
 import { FiArrowRight } from "react-icons/fi";
@@ -98,7 +99,7 @@ export default function AdminDashboardPage({
                         Today
                     </p>
                     <h2 className="mt-2 text-xl font-semibold text-foreground">
-                        Today&apos;s appointments
+                        Today&apos;s appointments ({data.counts.today})
                     </h2>
                     <div className="mt-4 space-y-3">
                         {data.today.map((booking) => (
@@ -111,38 +112,36 @@ export default function AdminDashboardPage({
                     </div>
                 </section>
             ) : null}
-            <section className="grid gap-6 xl:grid-cols-2">
-                <div className="space-y-3 rounded-3xl border border-border/60 bg-surface p-5 shadow-sm sm:p-7">
-                    <h2 className="text-lg font-semibold text-foreground">
-                        Needs action
-                    </h2>
-                    {data.queue.length > 0 ? (
-                        data.queue.map((booking) => (
-                            <AdminAppointmentRow
-                                key={booking.id}
-                                booking={booking}
-                                quickAction
-                            />
-                        ))
-                    ) : (
-                        <AdminEmptyState message="No pending actions right now." />
-                    )}
-                </div>
-                <div className="space-y-3 rounded-3xl border border-border/60 bg-surface p-5 shadow-sm sm:p-7">
-                    <h2 className="text-lg font-semibold text-foreground">
-                        Future appointments
-                    </h2>
-                    {data.upcoming.length > 0 ? (
-                        data.upcoming.map((booking) => (
-                            <AdminAppointmentRow
-                                key={booking.id}
-                                booking={booking}
-                            />
-                        ))
-                    ) : (
-                        <AdminEmptyState message="No upcoming appointments." />
-                    )}
-                </div>
+            <section className="grid items-start gap-6 lg:grid-cols-2">
+                <AdminCollapsibleSection title="Needs action" count={data.counts.needsAction} displayedCount={data.queue.length} showAllHref="/admin/appointments?view=needs_action">
+                    <div className="space-y-3">
+                        {data.queue.length > 0 ? (
+                            data.queue.map((booking) => (
+                                <AdminAppointmentRow
+                                    key={booking.id}
+                                    booking={booking}
+                                    quickAction
+                                />
+                            ))
+                        ) : (
+                            <AdminEmptyState message="No pending actions right now." />
+                        )}
+                    </div>
+                </AdminCollapsibleSection>
+                <AdminCollapsibleSection title="Future appointments" count={data.counts.upcoming} displayedCount={data.upcoming.length} showAllHref="/admin/appointments?view=future_appointments">
+                    <div className="space-y-3">
+                        {data.upcoming.length > 0 ? (
+                            data.upcoming.map((booking) => (
+                                <AdminAppointmentRow
+                                    key={booking.id}
+                                    booking={booking}
+                                />
+                            ))
+                        ) : (
+                            <AdminEmptyState message="No upcoming appointments." />
+                        )}
+                    </div>
+                </AdminCollapsibleSection>
             </section>
         </div>
     );

@@ -154,3 +154,72 @@ Review generated SQL before `npx supabase db push`. A remote push changes the
 linked database; a local reset changes only local data. Do not drop an object
 merely because it looks empty—confirm application references, database
 dependencies, production usage, and a recovery path first.
+
+## Complimentary loyalty appointments
+
+An admin `loyalty_courtesy_applied` event with `metadata.adjustment = "free"`
+identifies a complimentary completed appointment. The frontend shows the waived
+price as a courtesy adjustment and reports actual payments net of refunds,
+with zero due. It does not label the waived price as money paid.
+
+Apply `20261001152149_handle_loyalty_courtesy_invoice_checks.sql` before rerunning
+invoice checks. The exception view exempts only completed zero-value final
+payments with method `other`, a payment timestamp, the exact courtesy note,
+and the admin event on a completed booking. Other zero/negative payments still
+fail. Zero-value rows are excluded from invoice sources; actual deposits and
+refunds retain their original dates and amounts (including across months).
+
+Verify after applying the migration:
+
+```sql
+-- VEE-TVGULT should no longer appear here.
+select * from public.website_fee_payment_exceptions;
+
+-- Expect the August +15 deposit and September -15 refund, without the $0 marker.
+select payment_type, billing_month, recorded_amount, eligible_net_amount
+from public.website_fee_payment_details
+where booking_id = 'dc58d993-a9fd-44dc-aa2b-f5d0e370ffc6'
+order by paid_at;
+
+-- Both counts must be zero before using the email's run-checks button.
+select billing_month, unresolved_exception_count, source_drift_count
+from public.website_fee_ready_to_issue;
+```
+
+Frontend regression: open this appointment as both client and admin. Confirm
+courtesy is named, the waived price is shown separately, the $15 refund is
+visible, actual net payments are $0, and amount due is $0. Check an ordinary
+paid appointment and an unpaid appointment retain their existing totals.
+
+Run ledger regression tests with `node --test tests/booking-courtesy.test.mjs`.
+
+## Unified completion
+
+The completion form offers normal payment, an additional loyalty percentage
+discount, and a free loyalty courtesy. Admin and client totals share
+`AppointmentTotals`: service costs, promotions/courtesy, appointment total,
+payments/refunds, then amount due. Final price overrides appear as a separate
+adjustment. Existing promotions are preserved when applying a loyalty discount.
+
+Migration `20261001160416_unify_appointment_completion_courtesy.sql` adds the
+service-role-only transaction for loyalty completion. It locks the appointment,
+rejects repeats and future appointments, validates pending payments, and commits
+payment/refund/credit entries, completion, and the courtesy event together.
+A free appointment requires confirmation of actual cash refunds. Account credit
+is restored separately and excluded from website-fee refund revenue.
+
+Run `npm ci` then `npm test`. The locked PGlite development dependency runs
+courtesy transactions against an isolated in-memory PostgreSQL database built
+from the relevant migrations. No Docker or production connection is required.
+The suite also covers pricing, ordinary versus courtesy payments, and paginated
+appointment loading.
+
+## Cancellation source changes require reconciliation
+
+The cancellation handler currently changes received deposit payment rows to
+`credited` or `forfeited`. If a row already supports an issued invoice, this
+triggers `PAYMENT_STATUS_CHANGED` in `website_fee_invoice_source_drift` and
+blocks later invoice issuance. Keep the issued snapshot immutable. Reconcile
+actual cancellation/credit events before correcting records; do not suppress
+the drift check or blindly reset payment statuses. Future cancellation work
+should preserve original receipts and record outcomes separately.
